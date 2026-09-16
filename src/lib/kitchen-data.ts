@@ -1,89 +1,68 @@
-export type Item = { id: string; name: string; stocked: boolean };
-export type Category = { name: string; items: Item[] };
+export type Ingredient = {
+  id: string;
+  /** Label shown to the cook. */
+  name: string;
+  /** Lowercase fragments that count as "I have this". */
+  match: string[];
+};
 
-export const categories: Category[] = [
-  {
-    name: "Dairy & Eggs",
-    items: [
-      { id: "kefir", name: "Kefir", stocked: true },
-      { id: "greek-yogurt", name: "Greek yogurt", stocked: true },
-      { id: "eggs", name: "Eggs", stocked: true },
-      { id: "goat-cheese", name: "Goat cheese", stocked: false },
-      { id: "sliced-cheese", name: "Sliced cheese", stocked: false },
-      { id: "cottage-cheese", name: "Cottage cheese", stocked: true },
-      { id: "milk", name: "Milk", stocked: true },
-      { id: "cream", name: "Heavy cream", stocked: true },
-    ],
-  },
-  {
-    name: "Protein",
-    items: [
-      { id: "turkey", name: "Turkey slices", stocked: true },
-      { id: "ground-beef", name: "Ground beef", stocked: true },
-      { id: "chicken-thighs", name: "Chicken thighs", stocked: true },
-      { id: "shrimp", name: "Shrimp", stocked: true },
-      { id: "beef-chunks", name: "Beef chunks", stocked: true },
-    ],
-  },
-  {
-    name: "Produce",
-    items: [
-      { id: "garlic", name: "Garlic", stocked: true },
-      { id: "yellow-onion", name: "Yellow onions", stocked: true },
-      { id: "red-onion", name: "Red onions", stocked: true },
-      { id: "jalapeno", name: "Jalapeño", stocked: true },
-      { id: "ginger", name: "Ginger", stocked: true },
-      { id: "sweet-potato", name: "Sweet potatoes", stocked: true },
-      { id: "carrots", name: "Carrots", stocked: true },
-      { id: "celery", name: "Celery", stocked: true },
-      { id: "scallion", name: "Spring onion", stocked: true },
-      { id: "coriander", name: "Coriander", stocked: true },
-      { id: "peppers", name: "Baby bell peppers", stocked: true },
-      { id: "zucchini", name: "Zucchini", stocked: true },
-      { id: "cucumber", name: "Cucumber", stocked: true },
-      { id: "avocado", name: "Avocado", stocked: true },
-      { id: "lemons", name: "Lemons", stocked: true },
-      { id: "limes", name: "Limes", stocked: false },
-      { id: "squash", name: "Butternut squash / beets", stocked: true },
-      { id: "lettuce", name: "Lettuce", stocked: true },
-      { id: "eggplant", name: "Eggplant", stocked: true },
-      { id: "cauliflower", name: "Cauliflower", stocked: true },
-      { id: "potatoes", name: "Potatoes", stocked: true },
-      { id: "cherry-tomatoes", name: "Cherry tomatoes", stocked: true },
-      { id: "peas", name: "Frozen peas", stocked: true },
-      { id: "corn", name: "Corn", stocked: true },
-      { id: "dill", name: "Dill", stocked: true },
-      { id: "leek", name: "Leek", stocked: true },
-      { id: "mint", name: "Mint", stocked: true },
-    ],
-  },
-  {
-    name: "Pantry",
-    items: [
-      { id: "oatmeal", name: "Oatmeal", stocked: true },
-      { id: "tuna", name: "Tuna / sardines", stocked: true },
-      { id: "olives", name: "Olives", stocked: true },
-      { id: "hummus", name: "Hummus", stocked: true },
-      { id: "almond-butter", name: "Almond butter", stocked: true },
-      { id: "stock", name: "Chicken / veggie stock", stocked: true },
-      { id: "rice", name: "Arborio rice", stocked: true },
-      { id: "chickpeas", name: "Canned chickpeas", stocked: true },
-      { id: "kimchi", name: "Kimchi", stocked: true },
-    ],
-  },
-  {
-    name: "Grains",
-    items: [
-      { id: "bread", name: "Bread", stocked: true },
-      { id: "crackers", name: "Crackers", stocked: true },
-    ],
-  },
+export const ingredients: Ingredient[] = [
+  { id: "shrimp", name: "Shrimp", match: ["shrimp", "prawn"] },
+  { id: "rice", name: "Rice", match: ["rice"] },
+  { id: "garlic", name: "Garlic", match: ["garlic"] },
+  { id: "lemons", name: "Lemon", match: ["lemon"] },
+  { id: "scallion", name: "Spring onion", match: ["spring onion", "scallion", "green onion"] },
+  { id: "coriander", name: "Coriander", match: ["coriander", "cilantro"] },
+  { id: "chickpeas", name: "Chickpeas", match: ["chickpea", "garbanzo"] },
+  { id: "hummus", name: "Hummus", match: ["hummus"] },
+  { id: "cucumber", name: "Cucumber", match: ["cucumber"] },
+  { id: "cherry-tomatoes", name: "Cherry tomatoes", match: ["cherry tomato", "tomato"] },
+  { id: "olives", name: "Olives", match: ["olive"] },
+  { id: "dill", name: "Dill", match: ["dill"] },
+  { id: "chicken-thighs", name: "Chicken thighs", match: ["chicken thigh", "chicken"] },
+  { id: "sweet-potato", name: "Sweet potatoes", match: ["sweet potato"] },
+  { id: "carrots", name: "Carrots", match: ["carrot"] },
+  { id: "leek", name: "Leek", match: ["leek"] },
+  { id: "ground-beef", name: "Ground beef", match: ["ground beef", "beef mince", "minced beef"] },
+  { id: "zucchini", name: "Zucchini", match: ["zucchini", "courgette"] },
+  { id: "yellow-onion", name: "Onion", match: ["yellow onion", "onion"] },
+  { id: "red-onion", name: "Red onion", match: ["red onion", "onion"] },
+  { id: "kimchi", name: "Kimchi", match: ["kimchi"] },
+  { id: "eggs", name: "Eggs", match: ["egg"] },
+  { id: "ginger", name: "Ginger", match: ["ginger"] },
+  { id: "beef-chunks", name: "Stewing beef", match: ["beef chunk", "stewing beef", "beef"] },
+  { id: "stock", name: "Stock", match: ["stock", "broth", "bouillon"] },
+  { id: "celery", name: "Celery", match: ["celery"] },
+  { id: "potatoes", name: "Potatoes", match: ["potato"] },
+  { id: "tuna", name: "Tuna", match: ["tuna", "sardine"] },
+  { id: "corn", name: "Corn", match: ["corn", "sweetcorn"] },
+  { id: "lettuce", name: "Lettuce", match: ["lettuce", "salad leaves"] },
+  { id: "avocado", name: "Avocado", match: ["avocado"] },
+  { id: "eggplant", name: "Eggplant", match: ["eggplant", "aubergine"] },
+  { id: "mint", name: "Mint", match: ["mint"] },
+  { id: "goat-cheese", name: "Goat cheese", match: ["goat cheese", "feta"] },
+  { id: "cauliflower", name: "Cauliflower", match: ["cauliflower"] },
+  { id: "cream", name: "Cream", match: ["cream", "creme fraiche"] },
+  { id: "bread", name: "Bread", match: ["bread", "sourdough", "baguette", "toast"] },
+  { id: "turkey", name: "Turkey slices", match: ["turkey"] },
+  { id: "squash", name: "Butternut squash", match: ["squash", "pumpkin"] },
+  { id: "peppers", name: "Bell peppers", match: ["bell pepper", "pepper"] },
+  { id: "jalapeno", name: "Jalapeño", match: ["jalapeno", "jalapeño", "chilli", "chili"] },
 ];
 
-export const allItems: Item[] = categories.flatMap((c) => c.items);
+const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
 
-export const itemName = (id: string) =>
-  allItems.find((i) => i.id === id)?.name ?? id;
+export const itemName = (id: string) => ingredientById.get(id)?.name ?? id;
+
+/** True when any of the cook's in-stock item names satisfies this ingredient. */
+export function hasIngredient(id: string, stockedNames: string[]): boolean {
+  const ingredient = ingredientById.get(id);
+  if (!ingredient) return false;
+  return stockedNames.some((raw) => {
+    const name = raw.toLowerCase();
+    return ingredient.match.some((m) => name.includes(m) || m.includes(name));
+  });
+}
 
 export type Meal = {
   id: string;
@@ -263,6 +242,8 @@ export const meals: Meal[] = [
     ],
   },
 ];
+
+export const mealById = new Map(meals.map((m) => [m.id, m]));
 
 export const pantryBasics = [
   "Olive oil",
