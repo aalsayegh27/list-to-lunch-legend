@@ -80,7 +80,7 @@ export const addPantryItems = createServerFn({ method: "POST" })
       })
       .map((name) => ({
         user_id: userId,
-        name,
+        name: name.charAt(0).toUpperCase() + name.slice(1),
         category: data.category ? normalizeCategory(data.category) : guessCategory(name),
         in_stock: true,
       }));
