@@ -10,7 +10,6 @@ import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import { kitchenQueryOptions, rankMeals } from "@/lib/kitchen-client";
 import {
   addPantryItems,
-  removePantryItem,
   updatePantryItem,
 } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
@@ -41,7 +40,6 @@ function Planner() {
 
   const addItems = useServerFn(addPantryItems);
   const update = useServerFn(updatePantryItem);
-  const remove = useServerFn(removePantryItem);
 
   const [filter, setFilter] = useState<"All" | "Lunch" | "Dinner">("All");
 
@@ -94,10 +92,6 @@ function Planner() {
           }}
           onUpdate={async (id, patch) => {
             await update({ data: { id, ...patch } });
-            await refresh();
-          }}
-          onRemove={async (id) => {
-            await remove({ data: { id } });
             await refresh();
           }}
         />
