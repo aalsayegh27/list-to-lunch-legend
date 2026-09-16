@@ -49,7 +49,14 @@ Sign in / sign up  →  Build your pantry  →  See & heart meals  →  Edit pan
 - Drag any item chip onto a different category heading to move it. A "Move to…" menu on each chip covers phones.
 - Items can be removed, and every change is saved to your account.
 
+## 7. Your list, kept as a reusable CSV
+
+- Your uploaded grocery list is exported to a spreadsheet file (`grocery_list.csv`, item name + category) saved in Files.
+- It doubles as the sample list the "Start from a sample list" shortcut loads, and as the dummy data for a test account we can use to try out new features.
+- I'll also remember that this list is your test-account data, so future work uses it rather than treating it as everyone's default.
+
 ## Technical notes
+
 
 - Enable Lovable Cloud; email auth enabled and Google configured via the social-auth tool.
 - Migration creates owner-scoped tables with RLS on `auth.uid()` and explicit grants:
@@ -63,3 +70,5 @@ Sign in / sign up  →  Build your pantry  →  See & heart meals  →  Edit pan
 - `src/lib/kitchen-data.ts` keeps the 12 meals but matches on item *names* rather than fixed IDs, so user-typed items participate in matching.
 - Drag-and-drop uses native HTML5 drag events — no new dependency.
 - Each route gets its own `head()` metadata.
+- `grocery_list.csv` written to `/mnt/documents`, generated from the same source as `src/lib/starter-pantry.ts`; a project memory records it as the dummy test-account dataset.
+
