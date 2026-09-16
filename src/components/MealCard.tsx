@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { itemName, type Meal } from "@/lib/kitchen-data";
+import { mealImages } from "@/lib/meal-images";
 
 function Heart({ filled }: { filled: boolean }) {
   return (
@@ -29,10 +30,22 @@ export function MealCard({
 }) {
   const [open, setOpen] = useState(false);
   const missingList = missing ?? [];
+  const image = mealImages[meal.id];
 
   return (
-    <article className="bg-paper rounded-2xl border border-ink/10 p-5">
-      <div className="flex items-center justify-between gap-3">
+    <article className="overflow-hidden bg-paper rounded-2xl border border-ink/10">
+      {image && (
+        <img
+          src={image}
+          alt={`Two-color illustration of ${meal.title}`}
+          loading="lazy"
+          width={1024}
+          height={768}
+          className="aspect-[4/3] w-full object-cover border-b border-ink/10"
+        />
+      )}
+      <div className="p-5">
+        <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-terracotta">
           {meal.meal}
         </span>
@@ -51,12 +64,12 @@ export function MealCard({
             <Heart filled={favorite} />
           </button>
         </div>
-      </div>
+        </div>
 
-      <h3 className="font-display text-xl leading-tight mt-2">{meal.title}</h3>
-      <p className="text-sm text-ink/60 mt-1">{meal.blurb}</p>
+        <h3 className="font-display text-xl leading-tight mt-2">{meal.title}</h3>
+        <p className="text-sm text-ink/60 mt-1">{meal.blurb}</p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
         {missing ? (
           missingList.length === 0 ? (
             <span className="text-xs bg-sage/15 text-sagedark font-semibold px-2.5 py-1 rounded-full">
@@ -74,10 +87,10 @@ export function MealCard({
         >
           {open ? "Hide method" : "How to cook →"}
         </button>
-      </div>
+        </div>
 
-      {open && (
-        <div className="mt-4 border-t border-ink/10 pt-4">
+        {open && (
+          <div className="mt-4 border-t border-ink/10 pt-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
             You'll need
           </p>
@@ -94,8 +107,9 @@ export function MealCard({
               </li>
             ))}
           </ol>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </article>
   );
 }
