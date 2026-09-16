@@ -7,17 +7,14 @@ export function PantryPanel({
   items,
   onAdd,
   onUpdate,
-  onRemove,
 }: {
   items: PantryRow[];
   onAdd: (name: string) => void;
   onUpdate: (id: string, patch: { category?: string; inStock?: boolean }) => void;
-  onRemove: (id: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const inStock = items.filter((i) => i.in_stock).length;
   const used = PANTRY_CATEGORIES.filter((cat) =>
@@ -90,7 +87,7 @@ export function PantryPanel({
               {items
                 .filter((i) => i.category === cat)
                 .map((item) => (
-                  <span key={item.id} className="relative inline-flex">
+                  <span key={item.id} className="inline-flex">
                     <button
                       draggable
                       onDragStart={() => setDragId(item.id)}
@@ -99,54 +96,16 @@ export function PantryPanel({
                         setDragOver(null);
                       }}
                       onClick={() => onUpdate(item.id, { inStock: !item.in_stock })}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setMenuFor(menuFor === item.id ? null : item.id);
-                      }}
                       aria-pressed={item.in_stock}
+                      title="Click to mark in or out of stock; drag to move category"
                       className={
                         item.in_stock
-                          ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 pl-2.5 pr-1.5 py-1 text-[13px] font-semibold cursor-grab"
-                          : "rounded-full bg-paper text-ink/45 border border-ink/10 pl-2.5 pr-1.5 py-1 text-[13px] font-medium line-through cursor-grab"
+                          ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-2.5 py-1 text-[13px] font-semibold cursor-grab active:cursor-grabbing"
+                          : "rounded-full bg-paper text-ink/45 border border-ink/10 px-2.5 py-1 text-[13px] font-medium line-through cursor-grab active:cursor-grabbing"
                       }
                     >
                       {item.name}
                     </button>
-                    <button
-                      onClick={() => setMenuFor(menuFor === item.id ? null : item.id)}
-                      aria-label={`Options for ${item.name}`}
-                      className="ml-1 text-ink/35 hover:text-ink text-xs px-1"
-                    >
-                      ⋮
-                    </button>
-                    {menuFor === item.id && (
-                      <div className="absolute z-10 top-full left-0 mt-1 w-44 rounded-xl border border-ink/10 bg-paper shadow-lg p-2 text-left">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-ink/45 px-1 pb-1">
-                          Move to
-                        </p>
-                        {PANTRY_CATEGORIES.filter((c) => c !== item.category).map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => {
-                              onUpdate(item.id, { category: c });
-                              setMenuFor(null);
-                            }}
-                            className="block w-full text-left text-sm px-2 py-1 rounded-lg hover:bg-sage/10"
-                          >
-                            {c}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => {
-                            onRemove(item.id);
-                            setMenuFor(null);
-                          }}
-                          className="mt-1 block w-full text-left text-sm px-2 py-1 rounded-lg text-terracotta hover:bg-butter/50"
-                        >
-                          Remove item
-                        </button>
-                      </div>
-                    )}
                   </span>
                 ))}
             </div>
@@ -161,8 +120,8 @@ export function PantryPanel({
       )}
 
       <p className="mt-5 text-xs text-ink/50">
-        Tap an item to mark it in or out of stock. Drag it onto another heading — or use
-        the ⋮ menu — to re-file it.
+        Click an item to mark it in or out of stock. Drag it onto another heading to
+        re-file it.
       </p>
     </div>
   );
