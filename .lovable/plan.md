@@ -70,3 +70,5 @@ Sign in / sign up  →  Build your pantry  →  See & heart meals  →  Edit pan
 - `src/lib/kitchen-data.ts` keeps the 12 meals but matches on item *names* rather than fixed IDs, so user-typed items participate in matching.
 - Drag-and-drop uses native HTML5 drag events — no new dependency.
 - Each route gets its own `head()` metadata.
+- `grocery_list.csv` written to `/mnt/documents`, generated from the same source as `src/lib/starter-pantry.ts`; a project memory records it as the dummy test-account dataset.
+
