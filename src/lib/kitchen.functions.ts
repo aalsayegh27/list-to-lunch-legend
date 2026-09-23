@@ -35,7 +35,11 @@ export const getKitchen = createServerFn({ method: "GET" })
         .from("pantry_items")
         .select("id, name, category, in_stock")
         .eq("user_id", userId)
-        .order("created_at", { ascending: true }),
+        // Items added in one batch share a created_at, so break ties by name —
+        // otherwise Postgres can reshuffle them after every update.
+        .order("created_at", { ascending: true })
+        .order("name", { ascending: true })
+        .order("id", { ascending: true }),
       supabase
         .from("favorite_recipes")
         .select("meal_id, snapshot, created_at")

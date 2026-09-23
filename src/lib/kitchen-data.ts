@@ -1,8 +1,10 @@
+import { findPhrase, sameWord, toWords } from "./text-match";
+
 export type Ingredient = {
   id: string;
   /** Label shown to the cook. */
   name: string;
-  /** Lowercase fragments that count as "I have this". */
+  /** Words or phrases that count as "I have this" when they appear in an item's name. */
   match: string[];
 };
 
@@ -54,13 +56,41 @@ const ingredientById = new Map(ingredients.map((i) => [i.id, i]));
 
 export const itemName = (id: string) => ingredientById.get(id)?.name ?? id;
 
+/**
+ * Words that turn an ingredient into a different product when they follow it:
+ * "chicken stock" isn't chicken, "olive oil" isn't olives, "egg noodles" aren't eggs.
+ */
+const PRODUCT_WORDS = [
+  "stock", "broth", "bouillon", "powder", "paste", "sauce", "flake", "chip",
+  "noodle", "starch", "flour", "soup", "seasoning", "extract", "oil", "vinegar",
+  "milk", "cake", "cracker", "tortilla", "paper", "salt", "puree", "ketchup",
+  "tea", "biscuit", "cookie", "bar", "candy", "jam",
+];
+
+/** Items that contain an ingredient's name but aren't a stand-in for it. */
+const NOT_A_MATCH: Record<string, string[]> = {
+  cream: ["ice cream", "cream cheese"],
+  potatoes: ["sweet potato"],
+  peppers: ["black pepper", "white pepper", "cayenne pepper"],
+  "yellow-onion": ["spring onion", "green onion"],
+  "red-onion": ["spring onion", "green onion"],
+};
+
 /** True when any of the cook's in-stock item names satisfies this ingredient. */
 export function hasIngredient(id: string, stockedNames: string[]): boolean {
   const ingredient = ingredientById.get(id);
   if (!ingredient) return false;
+  const exclusions = (NOT_A_MATCH[id] ?? []).map(toWords);
+
   return stockedNames.some((raw) => {
-    const name = raw.toLowerCase();
-    return ingredient.match.some((m) => name.includes(m) || m.includes(name));
+    const words = toWords(raw);
+    if (exclusions.some((x) => findPhrase(words, x) !== -1)) return false;
+    return ingredient.match.some((m) => {
+      const end = findPhrase(words, toWords(m));
+      if (end === -1) return false;
+      const next = words[end + 1];
+      return !next || !PRODUCT_WORDS.some((p) => sameWord(next, p));
+    });
   });
 }
 

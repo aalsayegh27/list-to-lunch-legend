@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { X } from "lucide-react";
 import { useState } from "react";
 
 import { guessCategory } from "@/lib/categorize";
@@ -8,6 +9,7 @@ import { kitchenQueryOptions } from "@/lib/kitchen-client";
 import {
   addPantryItems,
   finishOnboarding,
+  removePantryItem,
   seedStarterPantry,
 } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
@@ -39,6 +41,7 @@ function Onboarding() {
   const addItems = useServerFn(addPantryItems);
   const seed = useServerFn(seedStarterPantry);
   const done = useServerFn(finishOnboarding);
+  const removeItem = useServerFn(removePantryItem);
 
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,6 +56,13 @@ function Onboarding() {
   async function add(names: string[]) {
     setBusy(true);
     await addItems({ data: { names } });
+    await refresh();
+    setBusy(false);
+  }
+
+  async function remove(id: string) {
+    setBusy(true);
+    await removeItem({ data: { id } });
     await refresh();
     setBusy(false);
   }
@@ -165,9 +175,17 @@ function Onboarding() {
             {items.map((item) => (
               <span
                 key={item.id}
-                className="rounded-full bg-sage/15 text-sagedark border border-sage/30 px-2.5 py-1 text-[13px] font-semibold"
+                className="inline-flex items-center gap-1 rounded-full bg-sage/15 text-sagedark border border-sage/30 pl-2.5 pr-1.5 py-1 text-[13px] font-semibold"
               >
                 {item.name}
+                <button
+                  onClick={() => void remove(item.id)}
+                  disabled={busy}
+                  aria-label={`Remove ${item.name}`}
+                  className="opacity-60 hover:opacity-100 disabled:opacity-30"
+                >
+                  <X className="size-3.5" />
+                </button>
               </span>
             ))}
             {items.length === 0 && (

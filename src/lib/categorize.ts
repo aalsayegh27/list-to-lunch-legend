@@ -1,3 +1,5 @@
+import { findPhrase, toWords } from "./text-match";
+
 export const PANTRY_CATEGORIES = [
   "Produce",
   "Protein",
@@ -21,12 +23,14 @@ const KEYWORDS: Record<Exclude<PantryCategory, "Other">, string[]> = {
     "pumpkin", "radish", "salad", "scallion", "shallot", "spinach", "spring onion",
     "sprout", "squash", "sweet potato", "tomato", "turnip", "zucchini", "fruit",
     "vegetable", "veg", "chard", "artichoke", "asparagus", "fennel", "peach", "plum",
+    "pea", "cherry", "beetroot",
   ],
   Protein: [
-    "anchov", "bacon", "beef", "chicken", "chorizo", "clam", "cod", "duck", "fish",
+    "anchovy", "bacon", "beef", "chicken", "chorizo", "clam", "cod", "duck", "fish",
     "ham", "lamb", "meat", "mince", "mussel", "pork", "prawn", "salami", "salmon",
     "sardine", "sausage", "scallop", "shrimp", "steak", "tofu", "tempeh", "tuna",
-    "turkey", "veal", "liver", "mackerel", "seitan",
+    "turkey", "veal", "liver", "mackerel", "seitan", "pepperoni", "goat", "meatball",
+    "burger", "hot dog", "prosciutto",
   ],
   "Dairy & Eggs": [
     "butter", "buttermilk", "cheddar", "cheese", "cottage", "cream", "creme",
@@ -38,7 +42,7 @@ const KEYWORDS: Record<Exclude<PantryCategory, "Other">, string[]> = {
     "bagel", "baguette", "barley", "bread", "bulgur", "cereal", "couscous",
     "cracker", "flour", "granola", "lavash", "macaroni", "noodle", "oat", "orzo",
     "pasta", "pita", "polenta", "quinoa", "rice", "roll", "sourdough", "spaghetti",
-    "tortilla", "wrap", "bun",
+    "tortilla", "wrap", "bun", "cornflake", "breadcrumb", "oatmeal", "porridge",
   ],
   Pantry: [
     "almond butter", "bean", "broth", "canned", "chickpea", "chocolate", "coconut milk",
@@ -46,35 +50,42 @@ const KEYWORDS: Record<Exclude<PantryCategory, "Other">, string[]> = {
     "mayonnaise", "mustard", "nut", "nutella", "oil", "passata", "peanut butter",
     "pesto", "pickle", "puree", "seed", "sesame", "soy sauce", "stock", "sugar",
     "sriracha", "tahini", "tinned", "tomato paste", "vinegar", "wine", "yeast",
-    "syrup", "raisin", "date", "tea",
+    "syrup", "raisin", "date", "tea", "champagne", "peanut", "spice", "paprika",
+    "cumin", "cinnamon", "nutmeg", "flake", "almond", "cashew",
   ],
   Frozen: [
     "frozen", "ice cream", "ice-cream", "fish finger", "frozen pea", "sorbet",
   ],
   Herbs: [
-    "basil", "bay leaf", "chive", "cilantro", "coriander", "dill", "herb", "mint",
-    "oregano", "parsley", "rosemary", "sage", "tarragon", "thyme",
+    "basil", "bay leaf", "bay leaves", "chive", "cilantro", "coriander", "dill", "herb",
+    "mint", "oregano", "parsley", "rosemary", "sage", "tarragon", "thyme",
   ],
 };
 
+const PHRASES = (Object.entries(KEYWORDS) as [PantryCategory, string[]][]).flatMap(
+  ([category, keywords]) =>
+    keywords.map((k) => ({ category, words: toWords(k), length: k.length })),
+);
+
 /** Best-guess category for a freely typed grocery item. */
 export function guessCategory(rawName: string): PantryCategory {
-  const name = rawName.trim().toLowerCase();
-  if (!name) return "Other";
+  const words = toWords(rawName);
+  if (words.length === 0) return "Other";
 
-  let best: { category: PantryCategory; length: number } | null = null;
+  // How it's stored beats what it is: frozen berries live in the freezer.
+  if (words.some((w) => w === "frozen")) return "Frozen";
+  if (words.some((w) => w === "canned" || w === "tinned")) return "Pantry";
 
-  for (const [category, words] of Object.entries(KEYWORDS) as [
-    PantryCategory,
-    string[],
-  ][]) {
-    for (const word of words) {
-      if (!name.includes(word)) continue;
-      // Longest keyword match wins, so "sweet potato" beats "potato"
-      // and "almond butter" beats "butter".
-      if (!best || word.length > best.length) {
-        best = { category, length: word.length };
-      }
+  let best: { category: PantryCategory; end: number; length: number } | null = null;
+
+  for (const { category, words: phrase, length } of PHRASES) {
+    const end = findPhrase(words, phrase, { compound: true });
+    if (end === -1) continue;
+    // The last word usually names the item ("chicken stock" is stock), so the
+    // match that ends latest wins. Among those the longest keyword wins, so
+    // "sweet potato" beats "potato" and "almond butter" beats "butter".
+    if (!best || end > best.end || (end === best.end && length > best.length)) {
+      best = { category, end, length };
     }
   }
 

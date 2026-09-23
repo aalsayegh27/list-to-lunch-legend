@@ -94,6 +94,15 @@ function Library() {
               Find something to cook
             </Link>
           </div>
+        ) : saved.length === 0 ? (
+          <div className="mt-8 bg-paper border border-ink/10 rounded-2xl p-6">
+            <p className="text-sm text-ink/65">
+              You haven't saved any {filter.toLowerCase()} recipes yet.{" "}
+              <button onClick={() => setFilter("All")} className="font-semibold underline">
+                Show all saved recipes
+              </button>
+            </p>
+          </div>
         ) : (
           <div className="mt-8 grid md:grid-cols-2 gap-4">
             {saved.map((meal) => {

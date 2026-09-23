@@ -8,10 +8,7 @@ import { MealCard } from "@/components/MealCard";
 import { PantryPanel } from "@/components/PantryPanel";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import { kitchenQueryOptions, rankMeals } from "@/lib/kitchen-client";
-import {
-  addPantryItems,
-  updatePantryItem,
-} from "@/lib/kitchen.functions";
+import { addPantryItems, removePantryItem, updatePantryItem } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
 
 export const Route = createFileRoute("/_authenticated/planner")({
@@ -40,6 +37,7 @@ function Planner() {
 
   const addItems = useServerFn(addPantryItems);
   const update = useServerFn(updatePantryItem);
+  const remove = useServerFn(removePantryItem);
 
   const [filter, setFilter] = useState<"All" | "Lunch" | "Dinner">("All");
 
@@ -74,7 +72,7 @@ function Planner() {
         </p>
         <h1 className="font-display text-4xl md:text-5xl leading-tight mt-3 max-w-2xl">
           {readyNow > 0
-            ? `${readyNow} meals you can cook right now.`
+            ? `${readyNow} ${readyNow === 1 ? "meal" : "meals"} you can cook right now.`
             : "Add a few more groceries and meals will appear."}
         </h1>
         <p className="mt-4 text-ink/70 max-w-xl">
@@ -92,6 +90,10 @@ function Planner() {
           }}
           onUpdate={async (id, patch) => {
             await update({ data: { id, ...patch } });
+            await refresh();
+          }}
+          onRemove={async (id) => {
+            await remove({ data: { id } });
             await refresh();
           }}
         />
@@ -135,7 +137,18 @@ function Planner() {
             ))}
           </div>
 
-          {visible.length === 0 && (
+          {visible.length === 0 && ranked.length > 0 && (
+            <div className="bg-paper border border-ink/10 rounded-2xl p-6">
+              <p className="text-sm text-ink/65">
+                No {filter.toLowerCase()} ideas with what's in your kitchen right now.{" "}
+                <button onClick={() => setFilter("All")} className="font-semibold underline">
+                  Show all meals
+                </button>
+              </p>
+            </div>
+          )}
+
+          {ranked.length === 0 && (
             <div className="bg-paper border border-ink/10 rounded-2xl p-6">
               <p className="text-sm text-ink/65">
                 Nothing matches your kitchen yet. Add a few more groceries on the left —

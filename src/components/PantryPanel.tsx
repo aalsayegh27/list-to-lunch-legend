@@ -1,5 +1,14 @@
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PANTRY_CATEGORIES, guessCategory, type PantryCategory } from "@/lib/categorize";
 import type { PantryRow } from "@/lib/kitchen.functions";
 
@@ -7,10 +16,12 @@ export function PantryPanel({
   items,
   onAdd,
   onUpdate,
+  onRemove,
 }: {
   items: PantryRow[];
   onAdd: (name: string) => void;
   onUpdate: (id: string, patch: { category?: string; inStock?: boolean }) => void;
+  onRemove: (id: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -53,8 +64,8 @@ export function PantryPanel({
       </form>
       {draft.trim() && (
         <p className="mt-2 text-xs text-ink/50">
-          Will go into <strong>{guessCategory(draft)}</strong> — drag it later if that's
-          wrong.
+          Will go into <strong>{guessCategory(draft)}</strong> — you can move it later if
+          that's wrong.
         </p>
       )}
 
@@ -87,7 +98,14 @@ export function PantryPanel({
               {items
                 .filter((i) => i.category === cat)
                 .map((item) => (
-                  <span key={item.id} className="inline-flex">
+                  <span
+                    key={item.id}
+                    className={
+                      item.in_stock
+                        ? "inline-flex items-center rounded-full bg-sage/15 text-sagedark border border-sage/30 text-[13px] font-semibold"
+                        : "inline-flex items-center rounded-full bg-paper text-ink/45 border border-ink/10 text-[13px] font-medium"
+                    }
+                  >
                     <button
                       draggable
                       onDragStart={() => setDragId(item.id)}
@@ -100,12 +118,42 @@ export function PantryPanel({
                       title="Click to mark in or out of stock; drag to move category"
                       className={
                         item.in_stock
-                          ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-2.5 py-1 text-[13px] font-semibold cursor-grab active:cursor-grabbing"
-                          : "rounded-full bg-paper text-ink/45 border border-ink/10 px-2.5 py-1 text-[13px] font-medium line-through cursor-grab active:cursor-grabbing"
+                          ? "pl-2.5 pr-1 py-1 cursor-grab active:cursor-grabbing"
+                          : "pl-2.5 pr-1 py-1 line-through cursor-grab active:cursor-grabbing"
                       }
                     >
                       {item.name}
                     </button>
+                    {/* Drag-and-drop doesn't work on touch screens, so every chip
+                        also gets a menu for re-filing and removing. */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        aria-label={`More options for ${item.name}`}
+                        className="pl-0.5 pr-1.5 py-1 opacity-60 hover:opacity-100 rounded-r-full"
+                      >
+                        <ChevronDown className="size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="rounded-xl font-body">
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-[0.16em] text-ink/45">
+                          Move to
+                        </DropdownMenuLabel>
+                        {PANTRY_CATEGORIES.filter((c) => c !== item.category).map((c) => (
+                          <DropdownMenuItem
+                            key={c}
+                            onSelect={() => onUpdate(item.id, { category: c })}
+                          >
+                            {c}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() => onRemove(item.id)}
+                          className="text-terracotta focus:text-terracotta"
+                        >
+                          Remove from kitchen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </span>
                 ))}
             </div>
@@ -120,8 +168,8 @@ export function PantryPanel({
       )}
 
       <p className="mt-5 text-xs text-ink/50">
-        Click an item to mark it in or out of stock. Drag it onto another heading to
-        re-file it.
+        Click an item to mark it in or out of stock. Drag it onto another heading, or use
+        its arrow menu, to re-file or remove it.
       </p>
     </div>
   );
