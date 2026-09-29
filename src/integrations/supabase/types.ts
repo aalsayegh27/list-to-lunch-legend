@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generations: {
+        Row: {
+          cost_usd: number
+          created_at: string
+          id: string
+          input_tokens: number
+          output_tokens: number
+          recipes_saved: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          output_tokens?: number
+          recipes_saved?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          output_tokens?: number
+          recipes_saved?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_settings: {
+        Row: {
+          daily_budget_usd: number
+          id: number
+          input_usd_per_mtok: number
+          max_batch_cost_usd: number
+          output_usd_per_mtok: number
+          per_user_daily_batches: number
+        }
+        Insert: {
+          daily_budget_usd?: number
+          id?: number
+          input_usd_per_mtok?: number
+          max_batch_cost_usd?: number
+          output_usd_per_mtok?: number
+          per_user_daily_batches?: number
+        }
+        Update: {
+          daily_budget_usd?: number
+          id?: number
+          input_usd_per_mtok?: number
+          max_batch_cost_usd?: number
+          output_usd_per_mtok?: number
+          per_user_daily_batches?: number
+        }
+        Relationships: []
+      }
       favorite_recipes: {
         Row: {
           created_at: string
@@ -67,31 +127,123 @@ export type Database = {
       }
       profiles: {
         Row: {
+          allergies: string[]
           created_at: string
+          diet: string | null
           email: string | null
           id: string
           onboarded_at: string | null
         }
         Insert: {
+          allergies?: string[]
           created_at?: string
+          diet?: string | null
           email?: string | null
           id: string
           onboarded_at?: string | null
         }
         Update: {
+          allergies?: string[]
           created_at?: string
+          diet?: string | null
           email?: string | null
           id?: string
           onboarded_at?: string | null
         }
         Relationships: []
       }
+      recipes: {
+        Row: {
+          allergens: string[]
+          created_at: string
+          created_by: string | null
+          diets: string[]
+          generation_id: string | null
+          hidden: boolean
+          id: string
+          ingredients: Json
+          meal: string
+          minutes: number
+          steps: Json
+          title: string
+          title_key: string | null
+        }
+        Insert: {
+          allergens?: string[]
+          created_at?: string
+          created_by?: string | null
+          diets?: string[]
+          generation_id?: string | null
+          hidden?: boolean
+          id?: string
+          ingredients: Json
+          meal: string
+          minutes: number
+          steps: Json
+          title: string
+          title_key?: string | null
+        }
+        Update: {
+          allergens?: string[]
+          created_at?: string
+          created_by?: string | null
+          diets?: string[]
+          generation_id?: string | null
+          hidden?: boolean
+          id?: string
+          ingredients?: Json
+          meal?: string
+          minutes?: number
+          steps?: Json
+          title?: string
+          title_key?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipes_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ai_finish_generation: {
+        Args: {
+          p_generation_id: string
+          p_input_tokens: number
+          p_output_tokens: number
+          p_recipes: Json
+        }
+        Returns: {
+          allergens: string[]
+          created_at: string
+          created_by: string | null
+          diets: string[]
+          generation_id: string | null
+          hidden: boolean
+          id: string
+          ingredients: Json
+          meal: string
+          minutes: number
+          steps: Json
+          title: string
+          title_key: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "recipes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      ai_remaining_today: { Args: never; Returns: number }
+      ai_reserve_generation: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
