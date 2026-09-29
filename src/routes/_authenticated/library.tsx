@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { MealCard } from "@/components/MealCard";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import { kitchenQueryOptions } from "@/lib/kitchen-client";
-import { hasIngredient } from "@/lib/kitchen-data";
+import { missingFor } from "@/lib/kitchen-data";
 
 export const Route = createFileRoute("/_authenticated/library")({
   head: () => ({
@@ -106,7 +106,7 @@ function Library() {
         ) : (
           <div className="mt-8 grid md:grid-cols-2 gap-4">
             {saved.map((meal) => {
-              const missing = meal.uses.filter((u) => !hasIngredient(u, stocked));
+              const missing = missingFor(meal, stocked);
               return (
                 <MealCard
                   key={meal.id}

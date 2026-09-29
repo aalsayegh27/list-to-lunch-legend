@@ -76,16 +76,17 @@ const NOT_A_MATCH: Record<string, string[]> = {
   "red-onion": ["spring onion", "green onion"],
 };
 
-/** True when any of the cook's in-stock item names satisfies this ingredient. */
-export function hasIngredient(id: string, stockedNames: string[]): boolean {
-  const ingredient = ingredientById.get(id);
-  if (!ingredient) return false;
-  const exclusions = (NOT_A_MATCH[id] ?? []).map(toWords);
-
+/** True when any in-stock item name contains one of `match` as a stand-in for it. */
+export function stockSatisfies(
+  match: string[],
+  stockedNames: string[],
+  notAMatch: string[] = [],
+): boolean {
+  const exclusions = notAMatch.map(toWords);
   return stockedNames.some((raw) => {
     const words = toWords(raw);
     if (exclusions.some((x) => findPhrase(words, x) !== -1)) return false;
-    return ingredient.match.some((m) => {
+    return match.some((m) => {
       const end = findPhrase(words, toWords(m));
       if (end === -1) return false;
       const next = words[end + 1];
@@ -94,15 +95,45 @@ export function hasIngredient(id: string, stockedNames: string[]): boolean {
   });
 }
 
+/** True when any of the cook's in-stock item names satisfies this ingredient. */
+export function hasIngredient(id: string, stockedNames: string[]): boolean {
+  const ingredient = ingredientById.get(id);
+  if (!ingredient) return false;
+  return stockSatisfies(ingredient.match, stockedNames, NOT_A_MATCH[id]);
+}
+
+/** An ingredient of an AI-created recipe: what to show, and what counts as having it. */
+export type RecipeIngredient = { name: string; match: string[] };
+
 export type Meal = {
   id: string;
   title: string;
   meal: "Lunch" | "Dinner";
   minutes: number;
   blurb: string;
+  /** Starter recipes: ingredient ids. AI recipes: ingredient names. */
   uses: string[];
   steps: string[];
+  /** Set on AI-created recipes from the shared library. */
+  ingredients?: RecipeIngredient[];
+  allergens?: string[];
+  source?: "starter" | "ai";
 };
+
+/** What the cook would still need to buy, as ingredient ids or names. */
+export function missingFor(meal: Meal, stockedNames: string[]): string[] {
+  if (meal.ingredients) {
+    return meal.ingredients
+      .filter((i) => !stockSatisfies(i.match, stockedNames))
+      .map((i) => i.name);
+  }
+  return meal.uses.filter((u) => !hasIngredient(u, stockedNames));
+}
+
+/** Ingredient names for diet and allergy checks. */
+export function ingredientNames(meal: Meal): string[] {
+  return meal.ingredients ? meal.ingredients.map((i) => i.name) : meal.uses.map(itemName);
+}
 
 export const meals: Meal[] = [
   {

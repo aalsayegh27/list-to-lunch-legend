@@ -5,11 +5,21 @@ import { X } from "lucide-react";
 import { useState } from "react";
 
 import { guessCategory } from "@/lib/categorize";
+import {
+  ALLERGEN_LABELS,
+  ALLERGENS,
+  DIET_LABELS,
+  DIETS,
+  type Allergen,
+  type Diet,
+  type Preferences,
+} from "@/lib/diet";
 import { kitchenQueryOptions } from "@/lib/kitchen-client";
 import {
   addPantryItems,
   finishOnboarding,
   removePantryItem,
+  savePreferences,
   seedStarterPantry,
 } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
@@ -42,16 +52,43 @@ function Onboarding() {
   const seed = useServerFn(seedStarterPantry);
   const done = useServerFn(finishOnboarding);
   const removeItem = useServerFn(removePantryItem);
+  const savePrefs = useServerFn(savePreferences);
 
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
   const items = kitchen?.items ?? [];
   const names = new Set(items.map((i) => i.name.toLowerCase()));
+  const prefs = kitchen?.prefs;
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
   }
+
+  async function updatePrefs(next: Preferences) {
+    setBusy(true);
+    await savePrefs({ data: next });
+    await refresh();
+    setBusy(false);
+  }
+
+  function toggleDiet(diet: Diet) {
+    if (!prefs) return;
+    void updatePrefs({ ...prefs, diet: prefs.diet === diet ? null : diet });
+  }
+
+  function toggleAllergy(allergen: Allergen) {
+    if (!prefs) return;
+    const allergies = prefs.allergies.includes(allergen)
+      ? prefs.allergies.filter((a) => a !== allergen)
+      : [...prefs.allergies, allergen];
+    void updatePrefs({ ...prefs, allergies });
+  }
+
+  const chipClass = (selected: boolean) =>
+    selected
+      ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold"
+      : "rounded-full bg-paper border border-ink/15 px-3 py-1.5 text-sm font-medium hover:border-sage";
 
   async function add(names: string[]) {
     setBusy(true);
@@ -165,6 +202,47 @@ function Onboarding() {
             Or start from a sample list →
           </button>
         </section>
+
+        {kitchen?.prefsSupported && prefs && (
+          <section className="mt-10">
+            <h2 className="font-display text-xl">Dietary needs</h2>
+            <p className="mt-1 text-sm text-ink/60">
+              Mise only suggests meals that fit. Tap again to clear.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {DIETS.map((diet) => (
+                <button
+                  key={diet}
+                  disabled={busy}
+                  onClick={() => toggleDiet(diet)}
+                  aria-pressed={prefs.diet === diet}
+                  className={chipClass(prefs.diet === diet)}
+                >
+                  {prefs.diet === diet ? `✓ ${DIET_LABELS[diet]}` : DIET_LABELS[diet]}
+                </button>
+              ))}
+            </div>
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+              Allergies
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ALLERGENS.map((allergen) => {
+                const on = prefs.allergies.includes(allergen);
+                return (
+                  <button
+                    key={allergen}
+                    disabled={busy}
+                    onClick={() => toggleAllergy(allergen)}
+                    aria-pressed={on}
+                    className={chipClass(on)}
+                  >
+                    {on ? `✓ ${ALLERGEN_LABELS[allergen]}` : ALLERGEN_LABELS[allergen]}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <section className="mt-10 bg-paper border border-ink/10 rounded-2xl p-6">
           <div className="flex items-center justify-between">

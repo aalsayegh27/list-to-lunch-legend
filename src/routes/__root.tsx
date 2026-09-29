@@ -127,6 +127,12 @@ function RootComponent() {
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
+      // A password-reset link can land on any page (e.g. the home page when the
+      // link's address isn't on the allowed list); send the cook to the form.
+      if (event === "PASSWORD_RECOVERY" && window.location.pathname !== "/reset-password") {
+        void router.navigate({ to: "/reset-password" });
+        return;
+      }
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") {
         return;
       }

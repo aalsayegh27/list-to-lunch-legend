@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth")({
@@ -27,7 +26,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">(
+  const [mode, setMode] = useState<"signin" | "signup" | "reset">(
     search.mode === "signup" ? "signup" : "signin",
   );
   const [email, setEmail] = useState("");
@@ -46,6 +45,15 @@ function AuthPage() {
     event.preventDefault();
     setBusy(true);
     setError(null);
+
+    if (mode === "reset") {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      setBusy(false);
+      if (resetError) return setError(resetError.message);
+      return setCheckEmail(true);
+    }
 
     if (mode === "signup") {
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -68,20 +76,6 @@ function AuthPage() {
     navigate({ to: "/planner", replace: true });
   }
 
-  async function handleGoogle() {
-    setBusy(true);
-    setError(null);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setBusy(false);
-      return setError("Google sign-in didn't work. Try again or use your email.");
-    }
-    if (result.redirected) return;
-    navigate({ to: "/planner", replace: true });
-  }
-
   return (
     <div className="min-h-screen bg-cream text-ink font-body grid place-items-center px-6 py-12">
       <div className="w-full max-w-md">
@@ -97,13 +91,23 @@ function AuthPage() {
             <div className="text-center">
               <h1 className="font-display text-2xl">Check your email</h1>
               <p className="mt-3 text-sm text-ink/70">
-                We sent a confirmation link to <strong>{email}</strong>. Click it and
-                you'll come right back here to set up your kitchen.
+                {mode === "reset" ? (
+                  <>
+                    If <strong>{email}</strong> has a Mise account, we sent it a link to
+                    choose a new password.
+                  </>
+                ) : (
+                  <>
+                    We sent a confirmation link to <strong>{email}</strong>. Click it and
+                    you'll come right back here to set up your kitchen.
+                  </>
+                )}
               </p>
               <button
                 onClick={() => {
                   setCheckEmail(false);
                   setMode("signin");
+                  setError(null);
                 }}
                 className="mt-6 text-sm font-semibold text-ink underline"
               >
@@ -113,27 +117,21 @@ function AuthPage() {
           ) : (
             <>
               <h1 className="font-display text-2xl">
-                {mode === "signup" ? "Create your kitchen" : "Welcome back"}
+                {mode === "signup"
+                  ? "Create your kitchen"
+                  : mode === "reset"
+                    ? "Reset your password"
+                    : "Welcome back"}
               </h1>
               <p className="mt-2 text-sm text-ink/60">
                 {mode === "signup"
                   ? "Next you'll add the groceries you keep at home."
-                  : "Sign in to see what you can cook tonight."}
+                  : mode === "reset"
+                    ? "We'll email you a link to choose a new one."
+                    : "Sign in to see what you can cook tonight."}
               </p>
 
-              <button
-                onClick={handleGoogle}
-                disabled={busy}
-                className="mt-6 w-full rounded-full border border-ink/15 bg-cream px-4 py-3 text-sm font-semibold disabled:opacity-60"
-              >
-                Continue with Google
-              </button>
-
-              <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-ink/40">
-                <span className="h-px flex-1 bg-ink/10" /> or <span className="h-px flex-1 bg-ink/10" />
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={handleSubmit} className="mt-6 space-y-3">
                 <label className="block">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
                     Email
@@ -147,20 +145,22 @@ function AuthPage() {
                     className="mt-1 w-full rounded-xl border border-ink/15 bg-cream px-4 py-2.5 text-sm outline-none focus:border-sage"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
-                    Password
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-ink/15 bg-cream px-4 py-2.5 text-sm outline-none focus:border-sage"
-                  />
-                </label>
+                {mode !== "reset" && (
+                  <label className="block">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                      Password
+                    </span>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-ink/15 bg-cream px-4 py-2.5 text-sm outline-none focus:border-sage"
+                    />
+                  </label>
+                )}
 
                 {error && <p className="text-sm text-terracotta">{error}</p>}
 
@@ -173,22 +173,37 @@ function AuthPage() {
                     ? "One moment…"
                     : mode === "signup"
                       ? "Create account"
-                      : "Sign in"}
+                      : mode === "reset"
+                        ? "Send reset link"
+                        : "Sign in"}
                 </button>
               </form>
 
               <p className="mt-5 text-center text-sm text-ink/60">
-                {mode === "signup" ? "Already have an account?" : "New here?"}{" "}
+                {mode === "signup" ? "Already have an account?" : mode === "reset" ? "Remembered it?" : "New here?"}{" "}
                 <button
                   onClick={() => {
-                    setMode(mode === "signup" ? "signin" : "signup");
+                    setMode(mode === "signin" ? "signup" : "signin");
                     setError(null);
                   }}
                   className="font-semibold text-ink underline"
                 >
-                  {mode === "signup" ? "Sign in" : "Create one"}
+                  {mode === "signin" ? "Create one" : "Sign in"}
                 </button>
               </p>
+              {mode === "signin" && (
+                <p className="mt-2 text-center text-sm text-ink/60">
+                  <button
+                    onClick={() => {
+                      setMode("reset");
+                      setError(null);
+                    }}
+                    className="font-semibold text-ink underline"
+                  >
+                    Forgot password?
+                  </button>
+                </p>
+              )}
             </>
           )}
         </div>

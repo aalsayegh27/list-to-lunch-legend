@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { guessCategory, normalizeCategory } from "./categorize";
+import { normalizePreferences, type Preferences } from "./diet";
 import type { Meal } from "./kitchen-data";
+import { aiRemainingToday, loadLibrary, loadPreferences, untyped } from "./recipe-library";
 
 export type PantryRow = {
   id: string;
@@ -22,14 +24,21 @@ export type Kitchen = {
   onboarded: boolean;
   items: PantryRow[];
   favorites: FavoriteRow[];
+  /** AI-created recipes from the shared library. */
+  library: Meal[];
+  prefs: Preferences;
+  /** False until the recipe-library migration is applied. */
+  prefsSupported: boolean;
+  ai: { ready: boolean; remainingToday: number };
 };
 
 export const getKitchen = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Kitchen> => {
     const { supabase, userId } = context;
+    const db = untyped(supabase);
 
-    const [profile, items, favorites] = await Promise.all([
+    const [profile, items, favorites, library, preferences] = await Promise.all([
       supabase.from("profiles").select("email, onboarded_at").eq("id", userId).maybeSingle(),
       supabase
         .from("pantry_items")
@@ -45,17 +54,41 @@ export const getKitchen = createServerFn({ method: "GET" })
         .select("meal_id, snapshot, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false }),
+      loadLibrary(db),
+      loadPreferences(db, userId),
     ]);
 
     if (items.error) throw items.error;
     if (favorites.error) throw favorites.error;
+
+    const aiReady = library.available && Boolean(process.env["ANTHROPIC_API_KEY"]);
 
     return {
       email: profile.data?.email ?? null,
       onboarded: Boolean(profile.data?.onboarded_at),
       items: (items.data ?? []) as PantryRow[],
       favorites: (favorites.data ?? []) as unknown as FavoriteRow[],
+      library: library.meals,
+      prefs: preferences.prefs,
+      prefsSupported: preferences.supported,
+      ai: { ready: aiReady, remainingToday: aiReady ? await aiRemainingToday(db) : 0 },
     };
+  });
+
+export const savePreferences = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { diet: string | null; allergies: string[] }) =>
+    normalizePreferences(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await untyped(context.supabase)
+      .from("profiles")
+      .upsert(
+        { id: context.userId, diet: data.diet, allergies: data.allergies },
+        { onConflict: "id" },
+      );
+    if (error) throw error;
+    return data;
   });
 
 export const addPantryItems = createServerFn({ method: "POST" })

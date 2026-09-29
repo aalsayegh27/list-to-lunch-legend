@@ -107,6 +107,11 @@ export function MealCard({
               </li>
             ))}
           </ol>
+          {meal.source === "ai" && (
+            <p className="mt-4 text-xs text-ink/50">
+              Created by AI — double-check allergens and cooking times.
+            </p>
+          )}
           </div>
         )}
       </div>
