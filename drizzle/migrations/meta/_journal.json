@@ -8,6 +8,13 @@
       "when": 1790715524341,
       "tag": "0000_recipe_library_and_ai_budget",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791316088869,
+      "tag": "0001_lock_down_ai_functions",
+      "breakpoints": true
     }
   ]
 }

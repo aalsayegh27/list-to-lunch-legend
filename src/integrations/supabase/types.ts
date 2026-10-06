@@ -55,6 +55,7 @@ export type Database = {
           max_batch_cost_usd: number
           output_usd_per_mtok: number
           per_user_daily_batches: number
+          server_secret_sha256: string | null
         }
         Insert: {
           daily_budget_usd?: number
@@ -63,6 +64,7 @@ export type Database = {
           max_batch_cost_usd?: number
           output_usd_per_mtok?: number
           per_user_daily_batches?: number
+          server_secret_sha256?: string | null
         }
         Update: {
           daily_budget_usd?: number
@@ -71,6 +73,7 @@ export type Database = {
           max_batch_cost_usd?: number
           output_usd_per_mtok?: number
           per_user_daily_batches?: number
+          server_secret_sha256?: string | null
         }
         Relationships: []
       }
@@ -219,6 +222,7 @@ export type Database = {
           p_input_tokens: number
           p_output_tokens: number
           p_recipes: Json
+          p_server_secret: string
         }
         Returns: {
           allergens: string[]
@@ -243,7 +247,16 @@ export type Database = {
         }
       }
       ai_remaining_today: { Args: never; Returns: number }
-      ai_reserve_generation: { Args: never; Returns: string }
+      ai_require_server_secret: {
+        Args: { p_secret: string }
+        Returns: undefined
+      }
+      ai_reserve_generation: {
+        Args: { p_server_secret: string }
+        Returns: string
+      }
+      recipe_ingredients_valid: { Args: { p: Json }; Returns: boolean }
+      recipe_steps_valid: { Args: { p: Json }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
