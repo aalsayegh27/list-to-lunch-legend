@@ -1,6 +1,6 @@
 ALTER TABLE public.ai_settings ADD COLUMN server_secret_sha256 TEXT;
 UPDATE public.ai_settings
-SET server_secret_sha256 = 'fc8c1477ae44f3d8ff4d0b1a9bc548d02789c6e66f9a0e6ca4c8ea44ece8e609'
+SET server_secret_sha256 = '06f9868eeef37fbacb9f10574596c1da5786b8b2ae0412d533eabd75b15364c9'
 WHERE id = 1;
 
 CREATE OR REPLACE FUNCTION public.ai_require_server_secret(p_secret TEXT)
