@@ -61,7 +61,10 @@ export const getKitchen = createServerFn({ method: "GET" })
     if (items.error) throw items.error;
     if (favorites.error) throw favorites.error;
 
-    const aiReady = library.available && Boolean(process.env["ANTHROPIC_API_KEY"]);
+    const aiReady =
+      library.available &&
+      Boolean(process.env["ANTHROPIC_API_KEY"]) &&
+      Boolean(process.env["MISE_SERVER_SECRET"]);
 
     return {
       email: profile.data?.email ?? null,

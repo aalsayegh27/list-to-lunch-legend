@@ -33,6 +33,9 @@ export const generateRecipes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<GenerateResult> => {
     const db = untyped(context.supabase);
     const apiKey = process.env["ANTHROPIC_API_KEY"];
+    // Proves to the database that this call comes from the app's server; without it
+    // the reserve/finish functions refuse (see 20261006120000_lock_down_ai_functions.sql).
+    const serverSecret = process.env["MISE_SERVER_SECRET"];
 
     const [pantry, library, preferences] = await Promise.all([
       context.supabase
@@ -43,7 +46,7 @@ export const generateRecipes = createServerFn({ method: "POST" })
       loadLibrary(db),
       loadPreferences(db, context.userId),
     ]);
-    if (!apiKey || !library.available) {
+    if (!apiKey || !serverSecret || !library.available) {
       return { ok: false, message: "New-meal suggestions aren't switched on yet.", remainingToday: 0 };
     }
     if (pantry.error) throw pantry.error;
@@ -58,7 +61,7 @@ export const generateRecipes = createServerFn({ method: "POST" })
     }
 
     // Book the batch against the daily caps before spending anything.
-    const reserved = await db.rpc("ai_reserve_generation");
+    const reserved = await db.rpc("ai_reserve_generation", { p_server_secret: serverSecret });
     if (reserved.error) {
       const limit = Object.keys(LIMIT_MESSAGES).find((k) => reserved.error.message.includes(k));
       if (limit) return { ok: false, message: LIMIT_MESSAGES[limit]!, remainingToday: 0 };
@@ -100,6 +103,7 @@ export const generateRecipes = createServerFn({ method: "POST" })
 
     // Settle the real cost and save what passed, even when nothing did.
     const finished = await db.rpc("ai_finish_generation", {
+      p_server_secret: serverSecret,
       p_generation_id: generationId,
       p_input_tokens: usage.inputTokens,
       p_output_tokens: usage.outputTokens,
