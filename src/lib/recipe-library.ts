@@ -76,6 +76,46 @@ export async function loadPreferences(
   };
 }
 
+export const REPORT_REASONS = ["allergens", "unsafe", "nonsense"] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
+  allergens: "Wrong allergens",
+  unsafe: "Unsafe steps",
+  nonsense: "Doesn't make sense",
+};
+
+export type Votes = {
+  /** False until the votes-and-reports migration is applied. */
+  supported: boolean;
+  /** The signed-in cook's own votes, by recipe id. */
+  mine: Record<string, 1 | -1>;
+  /** Recipes the signed-in cook has reported. */
+  reported: string[];
+  /** Everyone's thumbs up minus thumbs down, by recipe id. */
+  scores: Record<string, number>;
+};
+
+export const NO_VOTES: Votes = { supported: false, mine: {}, reported: [], scores: {} };
+
+export async function loadVotes(db: SupabaseClient, userId: string): Promise<Votes> {
+  const [mine, reported, totals] = await Promise.all([
+    db.from("recipe_votes").select("recipe_id, vote").eq("user_id", userId),
+    db.from("recipe_reports").select("recipe_id").eq("user_id", userId),
+    db.rpc("recipe_vote_totals"),
+  ]);
+  if (mine.error || reported.error || totals.error) return NO_VOTES;
+
+  const votes: Votes = { supported: true, mine: {}, reported: [], scores: {} };
+  for (const r of mine.data as { recipe_id: string; vote: number }[]) {
+    votes.mine[r.recipe_id] = r.vote > 0 ? 1 : -1;
+  }
+  votes.reported = (reported.data as { recipe_id: string }[]).map((r) => r.recipe_id);
+  for (const t of totals.data as { recipe_id: string; ups: number; downs: number }[]) {
+    votes.scores[t.recipe_id] = t.ups - t.downs;
+  }
+  return votes;
+}
+
 export async function aiRemainingToday(db: SupabaseClient): Promise<number> {
   const { data, error } = await db.rpc("ai_remaining_today");
   if (error || typeof data !== "number") return 0;

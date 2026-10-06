@@ -8,9 +8,17 @@ import { MealCard } from "@/components/MealCard";
 import { PantryPanel } from "@/components/PantryPanel";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import { ALLERGEN_LABELS, DIET_LABELS, type Preferences } from "@/lib/diet";
-import { kitchenQueryOptions, rankMeals } from "@/lib/kitchen-client";
-import { addPantryItems, removePantryItem, updatePantryItem } from "@/lib/kitchen.functions";
+import { kitchenQueryOptions, MAX_SHOWN, rankMeals, type RankedMeal } from "@/lib/kitchen-client";
+import {
+  addPantryItems,
+  removePantryItem,
+  reportRecipe,
+  setVote,
+  updatePantryItem,
+  type Kitchen,
+} from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
+import type { ReportReason } from "@/lib/recipe-library";
 import { generateRecipes } from "@/lib/recipes.functions";
 
 /** Below this many matching meals, the planner asks for new ones once per visit. */
@@ -63,10 +71,14 @@ function Planner() {
   const update = useServerFn(updatePantryItem);
   const remove = useServerFn(removePantryItem);
   const generate = useServerFn(generateRecipes);
+  const vote = useServerFn(setVote);
+  const report = useServerFn(reportRecipe);
 
   const [filter, setFilter] = useState<"All" | "Lunch" | "Dinner">("All");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<{ text: string; error: boolean } | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (kitchen && !kitchen.onboarded && kitchen.items.length === 0) {
@@ -77,9 +89,68 @@ function Planner() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["kitchen"] });
 
   const ranked = useMemo(
-    () => rankMeals(kitchen?.items ?? [], kitchen?.library, kitchen?.prefs),
-    [kitchen?.items, kitchen?.library, kitchen?.prefs],
+    () => rankMeals(kitchen?.items ?? [], kitchen?.library, kitchen?.prefs, kitchen?.votes),
+    [kitchen?.items, kitchen?.library, kitchen?.prefs, kitchen?.votes],
   );
+  const hiddenMeals = useMemo(
+    () =>
+      rankMeals(kitchen?.items ?? [], kitchen?.library, kitchen?.prefs, kitchen?.votes, {
+        hidden: true,
+      }),
+    [kitchen?.items, kitchen?.library, kitchen?.prefs, kitchen?.votes],
+  );
+
+  // Show a vote straight away (a thumbs down hides the card), then save it.
+  function patchVotes(change: (votes: Kitchen["votes"]) => Kitchen["votes"]) {
+    queryClient.setQueryData<Kitchen>(kitchenQueryOptions.queryKey, (k) =>
+      k ? { ...k, votes: change(k.votes) } : k,
+    );
+  }
+
+  async function castVote(mealId: string, value: 1 | -1 | 0) {
+    patchVotes((v) => {
+      const mine = { ...v.mine };
+      if (value === 0) delete mine[mealId];
+      else mine[mealId] = value;
+      return { ...v, mine };
+    });
+    setNotice(value === -1 ? "Hidden for you. You can bring it back below." : null);
+    try {
+      await vote({ data: { recipeId: mealId, vote: value } });
+    } catch {
+      setNotice("Couldn't save that vote. Try again in a bit.");
+    }
+    await refresh();
+  }
+
+  async function reportMeal(mealId: string, reason: ReportReason) {
+    patchVotes((v) => ({ ...v, reported: [...v.reported, mealId] }));
+    setNotice("Thanks for reporting it. That meal is now hidden for you.");
+    try {
+      await report({ data: { recipeId: mealId, reason } });
+    } catch {
+      setNotice("Couldn't send that report. Try again in a bit.");
+    }
+    await refresh();
+  }
+
+  function card({ meal, missing }: RankedMeal) {
+    const votingOn = !!kitchen?.votes.supported;
+    return (
+      <MealCard
+        key={meal.id}
+        meal={meal}
+        missing={missing}
+        favorite={savedIds.has(meal.id)}
+        onToggleFavorite={() => favoriteToggle.mutate({ meal, favorite: !savedIds.has(meal.id) })}
+        vote={kitchen?.votes.mine[meal.id] ?? 0}
+        {...(votingOn && {
+          onVote: (v: 1 | -1 | 0) => void castVote(meal.id, v),
+          onReport: (reason: ReportReason) => void reportMeal(meal.id, reason),
+        })}
+      />
+    );
+  }
 
   async function suggestMeals() {
     setSuggesting(true);
@@ -111,7 +182,9 @@ function Planner() {
     // suggestMeals only needs to run once, when the condition first holds.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldAutoSuggest]);
-  const visible = ranked.filter((r) => (filter === "All" ? true : r.meal.meal === filter));
+  const byFilter = (r: RankedMeal) => (filter === "All" ? true : r.meal.meal === filter);
+  const visible = ranked.filter(byFilter).slice(0, MAX_SHOWN);
+  const hiddenVisible = hiddenMeals.filter(byFilter);
   const readyNow = ranked.filter((r) => r.missing.length === 0).length;
   const savedIds = new Set((kitchen?.favorites ?? []).map((f) => f.meal_id));
 
@@ -132,9 +205,11 @@ function Planner() {
           Your pantry, made into meals
         </p>
         <h1 className="font-display text-4xl md:text-5xl leading-tight mt-3 max-w-2xl">
-          {readyNow > 0
-            ? `${readyNow} ${readyNow === 1 ? "meal" : "meals"} you can cook right now.`
-            : "Add a few more groceries and meals will appear."}
+          {readyNow > MAX_SHOWN
+            ? `${MAX_SHOWN}+ meals you can cook right now.`
+            : readyNow > 0
+              ? `${readyNow} ${readyNow === 1 ? "meal" : "meals"} you can cook right now.`
+              : "Add a few more groceries and meals will appear."}
         </h1>
         <p className="mt-4 text-ink/70 max-w-xl">
           Oils and spices are assumed — {pantryBasics.join(", ").toLowerCase()}. Tap
@@ -193,19 +268,7 @@ function Planner() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            {visible.map(({ meal, missing }) => (
-              <MealCard
-                key={meal.id}
-                meal={meal}
-                missing={missing}
-                favorite={savedIds.has(meal.id)}
-                onToggleFavorite={() =>
-                  favoriteToggle.mutate({ meal, favorite: !savedIds.has(meal.id) })
-                }
-              />
-            ))}
-          </div>
+          <div className="grid sm:grid-cols-2 gap-4">{visible.map(card)}</div>
 
           {visible.length === 0 && ranked.length > 0 && (
             <div className="bg-paper border border-ink/10 rounded-2xl p-6">
@@ -229,6 +292,25 @@ function Planner() {
                 .
               </p>
             </div>
+          )}
+
+          {(notice || hiddenVisible.length > 0) && (
+            <p className="mt-6 text-sm text-ink/60">
+              {notice}
+              {notice && hiddenVisible.length > 0 && " "}
+              {hiddenVisible.length > 0 && (
+                <>
+                  You've hidden {hiddenVisible.length}{" "}
+                  {hiddenVisible.length === 1 ? "meal" : "meals"} with a thumbs down.{" "}
+                  <button onClick={() => setShowHidden(!showHidden)} className="font-semibold underline">
+                    {showHidden ? "Hide them" : "Show them"}
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+          {showHidden && hiddenVisible.length > 0 && (
+            <div className="mt-4 grid sm:grid-cols-2 gap-4">{hiddenVisible.map(card)}</div>
           )}
 
           {kitchen.ai.ready && (

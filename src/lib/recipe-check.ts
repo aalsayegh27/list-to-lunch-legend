@@ -1,5 +1,5 @@
 import { ALLERGENS, detectAllergens, DIETS, fitsPreferences, type Preferences } from "./diet";
-import { stockSatisfies, type RecipeIngredient } from "./kitchen-data";
+import { ingredientKeys, stockSatisfies, type Meal, type RecipeIngredient } from "./kitchen-data";
 import { toWords } from "./text-match";
 
 /** A recipe as the AI returns it, before any checks. */
@@ -62,9 +62,10 @@ export function checkRecipes(
   drafts: DraftRecipe[],
   stockedNames: string[],
   prefs: Preferences,
-  existingTitleKeys: Set<string>,
+  existing: Meal[],
 ): CheckedRecipe[] {
-  const seen = new Set(existingTitleKeys);
+  const seen = new Set(existing.map((m) => titleKey(m.title)));
+  const known: KnownRecipe[] = existing.map((m) => ({ meal: m.meal, keys: ingredientKeys(m) }));
   const kept: CheckedRecipe[] = [];
 
   for (const draft of drafts) {
@@ -95,9 +96,30 @@ export function checkRecipes(
       (d) => draft.diets.includes(d) && fitsPreferences(names, { diet: d, allergies: [] }),
     );
 
+    const recipe = { title, meal: draft.meal, minutes: draft.minutes, ingredients, steps, allergens, diets };
+    const keys = ingredientKeys({ ...recipe, id: "", blurb: "", uses: [] });
+    if (known.some((k) => isNearDuplicate(k, { meal: draft.meal, keys }))) continue;
+
     seen.add(key);
-    kept.push({ title, meal: draft.meal, minutes: draft.minutes, ingredients, steps, allergens, diets });
+    known.push({ meal: draft.meal, keys });
+    kept.push(recipe);
   }
 
   return kept;
+}
+
+type KnownRecipe = { meal: string; keys: string[] };
+
+/**
+ * Share of ingredients two recipes must have in common (of all the ingredients
+ * either uses) to count as the same dish under a different title, such as
+ * "Lemon Garlic Chicken & Rice" and "Garlic-Lemon Chicken with Rice".
+ */
+const NEAR_DUPLICATE_OVERLAP = 0.75;
+
+export function isNearDuplicate(a: KnownRecipe, b: KnownRecipe): boolean {
+  if (a.meal !== b.meal) return false;
+  const shared = a.keys.filter((k) => b.keys.includes(k)).length;
+  const all = new Set([...a.keys, ...b.keys]).size;
+  return all > 0 && shared / all >= NEAR_DUPLICATE_OVERLAP;
 }

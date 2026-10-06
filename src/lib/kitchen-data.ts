@@ -130,6 +130,17 @@ export function missingFor(meal: Meal, stockedNames: string[]): string[] {
   return meal.uses.filter((u) => !hasIngredient(u, stockedNames));
 }
 
+/**
+ * A comparable key per ingredient, for spotting near-duplicate recipes: the most
+ * specific match term ("chicken thigh", "cherry tomato"), as plain words.
+ */
+export function ingredientKeys(meal: Meal): string[] {
+  const terms = meal.ingredients
+    ? meal.ingredients.map((i) => i.match[0] ?? i.name)
+    : meal.uses.map((u) => ingredientById.get(u)?.match[0] ?? u);
+  return [...new Set(terms.map((t) => toWords(t).join(" ")).filter(Boolean))];
+}
+
 /** Ingredient names for diet and allergy checks. */
 export function ingredientNames(meal: Meal): string[] {
   return meal.ingredients ? meal.ingredients.map((i) => i.name) : meal.uses.map(itemName);

@@ -1,7 +1,9 @@
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
 
 import { itemName, type Meal } from "@/lib/kitchen-data";
 import { mealImages } from "@/lib/meal-images";
+import { REPORT_REASON_LABELS, REPORT_REASONS, type ReportReason } from "@/lib/recipe-library";
 
 function Heart({ filled }: { filled: boolean }) {
   return (
@@ -22,13 +24,21 @@ export function MealCard({
   missing,
   favorite,
   onToggleFavorite,
+  vote,
+  onVote,
+  onReport,
 }: {
   meal: Meal;
   missing?: string[];
   favorite: boolean;
   onToggleFavorite: () => void;
+  /** The cook's own vote; voting buttons only show when onVote is given. */
+  vote?: 1 | -1 | 0;
+  onVote?: (vote: 1 | -1 | 0) => void;
+  onReport?: (reason: ReportReason) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const missingList = missing ?? [];
   const image = mealImages[meal.id];
 
@@ -51,6 +61,46 @@ export function MealCard({
         </span>
         <div className="flex items-center gap-3">
           <span className="text-xs text-ink/50">{meal.minutes} min</span>
+          {onVote && (
+            <>
+              <button
+                onClick={() => onVote(vote === 1 ? 0 : 1)}
+                aria-pressed={vote === 1}
+                aria-label={vote === 1 ? `Remove thumbs up from ${meal.title}` : `Thumbs up ${meal.title}`}
+                className={
+                  vote === 1
+                    ? "text-sagedark transition-colors"
+                    : "text-ink/30 hover:text-sagedark transition-colors"
+                }
+              >
+                <ThumbsUp
+                  className="size-[18px]"
+                  strokeWidth={1.6}
+                  fill={vote === 1 ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
+              </button>
+              <button
+                onClick={() => onVote(vote === -1 ? 0 : -1)}
+                aria-pressed={vote === -1}
+                aria-label={
+                  vote === -1 ? `Remove thumbs down from ${meal.title}` : `Thumbs down ${meal.title}`
+                }
+                className={
+                  vote === -1
+                    ? "text-ink/70 transition-colors"
+                    : "text-ink/30 hover:text-ink/70 transition-colors"
+                }
+              >
+                <ThumbsDown
+                  className="size-[18px]"
+                  strokeWidth={1.6}
+                  fill={vote === -1 ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
+              </button>
+            </>
+          )}
           <button
             onClick={onToggleFavorite}
             aria-pressed={favorite}
@@ -112,6 +162,38 @@ export function MealCard({
               Created by AI — double-check allergens and cooking times.
             </p>
           )}
+          {onReport &&
+            (reporting ? (
+              <div className="mt-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                  What's wrong?
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {REPORT_REASONS.map((reason) => (
+                    <button
+                      key={reason}
+                      onClick={() => onReport(reason)}
+                      className="rounded-full bg-paper border border-ink/15 px-3 py-1 text-xs font-medium hover:border-sage"
+                    >
+                      {REPORT_REASON_LABELS[reason]}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setReporting(false)}
+                    className="px-1 text-xs font-semibold text-ink/50 underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setReporting(true)}
+                className="mt-4 text-xs font-semibold text-ink/50 underline"
+              >
+                Report a problem
+              </button>
+            ))}
           </div>
         )}
       </div>

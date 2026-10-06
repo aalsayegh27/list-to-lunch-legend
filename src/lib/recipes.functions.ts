@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { fitsPreferences } from "./diet";
 import { ingredientNames, meals } from "./kitchen-data";
-import { checkRecipes, titleKey, type DraftRecipe } from "./recipe-check";
+import { checkRecipes, type DraftRecipe } from "./recipe-check";
 import {
   aiRemainingToday,
   loadLibrary,
@@ -94,12 +94,7 @@ export const generateRecipes = createServerFn({ method: "POST" })
       console.error("[recipes] generation failed", error);
     }
 
-    const checked = checkRecipes(
-      drafts,
-      stockedNames,
-      prefs,
-      new Set(known.map((m) => titleKey(m.title))),
-    );
+    const checked = checkRecipes(drafts, stockedNames, prefs, known);
 
     // Settle the real cost and save what passed, even when nothing did.
     const finished = await db.rpc("ai_finish_generation", {

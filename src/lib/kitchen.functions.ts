@@ -4,7 +4,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { guessCategory, normalizeCategory } from "./categorize";
 import { normalizePreferences, type Preferences } from "./diet";
 import type { Meal } from "./kitchen-data";
-import { aiRemainingToday, loadLibrary, loadPreferences, untyped } from "./recipe-library";
+import {
+  aiRemainingToday,
+  loadLibrary,
+  loadPreferences,
+  loadVotes,
+  REPORT_REASONS,
+  untyped,
+  type Votes,
+} from "./recipe-library";
+
+/** Starter slugs ("shrimp-rice") or AI recipe UUIDs; the database checks the rest. */
+const RECIPE_ID = /^[a-z0-9-]{3,64}$/;
 
 export type PantryRow = {
   id: string;
@@ -30,6 +41,7 @@ export type Kitchen = {
   /** False until the recipe-library migration is applied. */
   prefsSupported: boolean;
   ai: { ready: boolean; remainingToday: number };
+  votes: Votes;
 };
 
 export const getKitchen = createServerFn({ method: "GET" })
@@ -38,7 +50,7 @@ export const getKitchen = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const db = untyped(supabase);
 
-    const [profile, items, favorites, library, preferences] = await Promise.all([
+    const [profile, items, favorites, library, preferences, votes] = await Promise.all([
       supabase.from("profiles").select("email, onboarded_at").eq("id", userId).maybeSingle(),
       supabase
         .from("pantry_items")
@@ -56,6 +68,7 @@ export const getKitchen = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false }),
       loadLibrary(db),
       loadPreferences(db, userId),
+      loadVotes(db, userId),
     ]);
 
     if (items.error) throw items.error;
@@ -75,7 +88,49 @@ export const getKitchen = createServerFn({ method: "GET" })
       prefs: preferences.prefs,
       prefsSupported: preferences.supported,
       ai: { ready: aiReady, remainingToday: aiReady ? await aiRemainingToday(db) : 0 },
+      votes,
     };
+  });
+
+/** Thumbs up (1), thumbs down (-1) or clear (0) the cook's vote on a recipe. */
+export const setVote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { recipeId: string; vote: number }) => {
+    if (!RECIPE_ID.test(input.recipeId)) throw new Error("Unknown recipe");
+    const vote = input.vote > 0 ? 1 : input.vote < 0 ? -1 : 0;
+    return { recipeId: input.recipeId, vote };
+  })
+  .handler(async ({ data, context }) => {
+    const votes = untyped(context.supabase).from("recipe_votes");
+    const { error } =
+      data.vote === 0
+        ? await votes.delete().eq("user_id", context.userId).eq("recipe_id", data.recipeId)
+        : await votes.upsert(
+            { user_id: context.userId, recipe_id: data.recipeId, vote: data.vote },
+            { onConflict: "user_id,recipe_id" },
+          );
+    if (error) throw error;
+    return data;
+  });
+
+/** Report a problem with a recipe. Hides it for this cook; see the migration for the rest. */
+export const reportRecipe = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { recipeId: string; reason: string }) => {
+    if (!RECIPE_ID.test(input.recipeId)) throw new Error("Unknown recipe");
+    const reason = REPORT_REASONS.find((r) => r === input.reason);
+    if (!reason) throw new Error("Unknown reason");
+    return { recipeId: input.recipeId, reason };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await untyped(context.supabase)
+      .from("recipe_reports")
+      .upsert(
+        { user_id: context.userId, recipe_id: data.recipeId, reason: data.reason },
+        { onConflict: "user_id,recipe_id", ignoreDuplicates: true },
+      );
+    if (error) throw error;
+    return data;
   });
 
 export const savePreferences = createServerFn({ method: "POST" })
