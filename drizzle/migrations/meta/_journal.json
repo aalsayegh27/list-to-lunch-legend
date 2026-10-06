@@ -15,6 +15,13 @@
       "when": 1791316088869,
       "tag": "0001_lock_down_ai_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791318325595,
+      "tag": "0002_recipe_votes_and_reports",
+      "breakpoints": true
     }
   ]
 }

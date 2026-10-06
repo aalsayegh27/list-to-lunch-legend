@@ -55,6 +55,7 @@ export type Database = {
           max_batch_cost_usd: number
           output_usd_per_mtok: number
           per_user_daily_batches: number
+          reports_to_hide: number
           server_secret_sha256: string | null
         }
         Insert: {
@@ -64,6 +65,7 @@ export type Database = {
           max_batch_cost_usd?: number
           output_usd_per_mtok?: number
           per_user_daily_batches?: number
+          reports_to_hide?: number
           server_secret_sha256?: string | null
         }
         Update: {
@@ -73,6 +75,7 @@ export type Database = {
           max_batch_cost_usd?: number
           output_usd_per_mtok?: number
           per_user_daily_batches?: number
+          reports_to_hide?: number
           server_secret_sha256?: string | null
         }
         Relationships: []
@@ -152,6 +155,48 @@ export type Database = {
           email?: string | null
           id?: string
           onboarded_at?: string | null
+        }
+        Relationships: []
+      }
+      recipe_reports: {
+        Row: {
+          created_at: string
+          reason: string
+          recipe_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          reason: string
+          recipe_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          reason?: string
+          recipe_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recipe_votes: {
+        Row: {
+          created_at: string
+          recipe_id: string
+          user_id: string
+          vote: number
+        }
+        Insert: {
+          created_at?: string
+          recipe_id: string
+          user_id?: string
+          vote: number
+        }
+        Update: {
+          created_at?: string
+          recipe_id?: string
+          user_id?: string
+          vote?: number
         }
         Relationships: []
       }
@@ -255,8 +300,17 @@ export type Database = {
         Args: { p_server_secret: string }
         Returns: string
       }
+      is_recipe_id: { Args: { p: string }; Returns: boolean }
       recipe_ingredients_valid: { Args: { p: Json }; Returns: boolean }
       recipe_steps_valid: { Args: { p: Json }; Returns: boolean }
+      recipe_vote_totals: {
+        Args: never
+        Returns: {
+          downs: number
+          recipe_id: string
+          ups: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
