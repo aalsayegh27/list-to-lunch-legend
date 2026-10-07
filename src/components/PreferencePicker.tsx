@@ -32,8 +32,12 @@ export function PreferencePicker({
   const suggestions = searchCatalog(query, catalog)
     .filter((e) => !selected.includes(e.key))
     .slice(0, SUGGESTIONS_SHOWN);
+  // Don't offer "Add “Ha”" for the first letters of a built-in entry.
   const offerCustom =
-    typed !== null && !selected.includes(typed) && !catalog.some((e) => e.key === typed);
+    typed !== null &&
+    !selected.includes(typed) &&
+    !catalog.some((e) => e.key === typed) &&
+    (typed.length >= 3 || suggestions.length === 0);
   const full = selected.length >= max;
 
   function add(key: string | null) {
