@@ -27,6 +27,7 @@ export function MealCard({
   vote,
   onVote,
   onReport,
+  hasDiets = false,
 }: {
   meal: Meal;
   missing?: string[];
@@ -36,9 +37,12 @@ export function MealCard({
   vote?: 1 | -1 | 0;
   onVote?: (vote: 1 | -1 | 0) => void;
   onReport?: (reason: ReportReason) => void;
+  /** Offer "Doesn't fit my diet" only to cooks who have a diet set. */
+  hasDiets?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const reasons = REPORT_REASONS.filter((r) => r !== "diet" || hasDiets);
   const missingList = missing ?? [];
   const image = mealImages[meal.id];
 
@@ -169,7 +173,7 @@ export function MealCard({
                   What's wrong?
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {REPORT_REASONS.map((reason) => (
+                  {reasons.map((reason) => (
                     <button
                       key={reason}
                       onClick={() => onReport(reason)}

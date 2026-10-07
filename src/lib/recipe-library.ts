@@ -81,10 +81,11 @@ export async function loadPreferences(
   };
 }
 
-export const REPORT_REASONS = ["allergens", "unsafe", "nonsense"] as const;
+export const REPORT_REASONS = ["allergens", "diet", "unsafe", "nonsense"] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   allergens: "Wrong allergens",
+  diet: "Doesn't fit my diet",
   unsafe: "Unsafe steps",
   nonsense: "Doesn't make sense",
 };

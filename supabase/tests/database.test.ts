@@ -273,3 +273,36 @@ describe("reports", () => {
     ]);
   });
 });
+
+describe("diet reports", () => {
+  const D = "00000000-0000-4000-8000-00000000000d";
+  const E = "00000000-0000-4000-8000-00000000000e";
+  const F = "00000000-0000-4000-8000-00000000000f";
+  let id: string;
+
+  beforeAll(async () => {
+    await db.exec(`INSERT INTO auth.users VALUES ('${D}', 'd@test'), ('${E}', 'e@test'), ('${F}', 'f@test')`);
+    await db.exec(`UPDATE profiles SET diets = '{low fodmap}' WHERE id = '${D}'`);
+    await db.exec(`UPDATE profiles SET diets = '{low fodmap,vegan}' WHERE id = '${E}'`);
+    [{ id }] = (await generate(C, [recipe("Diet Report Rice", { diets: ["low fodmap", "halal"] })])) as [{ id: string }];
+  });
+
+  const tags = async () =>
+    (await db.query<{ diets: string[]; hidden: boolean }>("SELECT diets, hidden FROM recipes WHERE id = $1", [id])).rows[0];
+
+  it("keeps the tag after one report", async () => {
+    await as(D, "INSERT INTO recipe_reports (recipe_id, reason) VALUES ($1, 'diet')", [id]);
+    expect(await tags()).toEqual({ diets: ["low fodmap", "halal"], hidden: false });
+  });
+
+  it("drops only the disputed diet's tag once two cooks on that diet report it", async () => {
+    await as(E, "INSERT INTO recipe_reports (recipe_id, reason) VALUES ($1, 'diet')", [id]);
+    expect(await tags()).toEqual({ diets: ["halal"], hidden: false });
+  });
+
+  it("never hides the recipe for everyone, and isn't counted toward that", async () => {
+    await as(F, "INSERT INTO recipe_reports (recipe_id, reason) VALUES ($1, 'unsafe')", [id]);
+    expect((await tags())?.hidden).toBe(false);
+    expect(await as(A, "SELECT id FROM recipes WHERE id = $1", [id])).toHaveLength(1);
+  });
+});

@@ -150,6 +150,7 @@ function Planner() {
         favorite={savedIds.has(meal.id)}
         onToggleFavorite={() => favoriteToggle.mutate({ meal, favorite: !savedIds.has(meal.id) })}
         vote={kitchen?.votes.mine[meal.id] ?? 0}
+        hasDiets={(kitchen?.prefs.diets.length ?? 0) > 0}
         {...(votingOn && {
           onVote: (v: 1 | -1 | 0) => void castVote(meal.id, v),
           onReport: (reason: ReportReason) => void reportMeal(meal.id, reason),
