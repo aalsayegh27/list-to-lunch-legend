@@ -1,3 +1,4 @@
+import type { RecipeFacts } from "./diet";
 import { findPhrase, sameWord, toWords } from "./text-match";
 
 export type Ingredient = {
@@ -117,6 +118,8 @@ export type Meal = {
   /** Set on AI-created recipes from the shared library. */
   ingredients?: RecipeIngredient[];
   allergens?: string[];
+  /** Diets the recipe is confirmed to fit, including AI-confirmed custom ones. */
+  diets?: string[];
   source?: "starter" | "ai";
 };
 
@@ -144,6 +147,20 @@ export function ingredientKeys(meal: Meal): string[] {
 /** Ingredient names for diet and allergy checks. */
 export function ingredientNames(meal: Meal): string[] {
   return meal.ingredients ? meal.ingredients.map((i) => i.name) : meal.uses.map(itemName);
+}
+
+/** Everything fitsPreferences needs to know about a recipe. */
+export function recipeFacts(meal: Meal): RecipeFacts {
+  const names = ingredientNames(meal);
+  const standIns = meal.ingredients
+    ? meal.ingredients.flatMap((i) => i.match)
+    : meal.uses.flatMap((u) => ingredientById.get(u)?.match ?? []);
+  return {
+    names,
+    terms: [...new Set([...names, ...standIns])],
+    allergens: meal.allergens ?? [],
+    diets: meal.diets ?? [],
+  };
 }
 
 export const meals: Meal[] = [

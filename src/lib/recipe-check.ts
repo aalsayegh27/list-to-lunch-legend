@@ -1,4 +1,13 @@
-import { ALLERGENS, detectAllergens, DIETS, fitsPreferences, type Preferences } from "./diet";
+import {
+  checkedDietsFor,
+  detectAllergens,
+  DIET_CATALOG,
+  fitsPreferences,
+  isCheckedDiet,
+  KNOWN_ALLERGENS,
+  normalizeLabel,
+  type Preferences,
+} from "./diet";
 import { ingredientKeys, stockSatisfies, type Meal, type RecipeIngredient } from "./kitchen-data";
 import { toWords } from "./text-match";
 
@@ -87,14 +96,17 @@ export function checkRecipes(
     if (missing.length > 1) continue;
 
     const names = ingredients.map((i) => i.name);
-    if (!fitsPreferences(names, prefs, draft.allergens)) continue;
-
-    const allergens = ALLERGENS.filter(
-      (a) => draft.allergens.includes(a) || detectAllergens(names).includes(a),
-    );
-    const diets = DIETS.filter(
-      (d) => draft.diets.includes(d) && fitsPreferences(names, { diet: d, allergies: [] }),
-    );
+    const detected = detectAllergens(names);
+    const allergens = KNOWN_ALLERGENS.filter((a) => draft.allergens.includes(a) || detected.includes(a));
+    // Built-in diets come from the ingredient rules. For any other diet, only the
+    // cook's own requested diets are tagged, and only when the AI said it fits.
+    const claimed = draft.diets.map((d) => normalizeLabel(d, DIET_CATALOG));
+    const diets = [
+      ...checkedDietsFor(names, allergens),
+      ...prefs.diets.filter((d) => !isCheckedDiet(d) && claimed.includes(d)),
+    ];
+    const terms = [...names, ...ingredients.flatMap((i) => i.match)];
+    if (!fitsPreferences({ names, terms, allergens, diets }, prefs)) continue;
 
     const recipe = { title, meal: draft.meal, minutes: draft.minutes, ingredients, steps, allergens, diets };
     const keys = ingredientKeys({ ...recipe, id: "", blurb: "", uses: [] });

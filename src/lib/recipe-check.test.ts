@@ -4,7 +4,7 @@ import type { Meal } from "./kitchen-data";
 import { checkRecipes, isNearDuplicate, type DraftRecipe } from "./recipe-check";
 
 const stocked = ["Chicken thighs", "Lemons", "Garlic", "Rice", "Spinach", "Baby bell peppers"];
-const none = { diet: null, allergies: [] };
+const none = { diets: [], allergies: [] };
 
 function draft(title: string, ingredients: [string, string[]][], extra: Partial<DraftRecipe> = {}): DraftRecipe {
   return {
@@ -62,9 +62,9 @@ describe("checkRecipes", () => {
   });
 
   it("respects the cook's diet and allergies", () => {
-    expect(checkRecipes([lemonChicken], stocked, { diet: "vegetarian", allergies: [] }, [])).toEqual([]);
+    expect(checkRecipes([lemonChicken], stocked, { diets: ["vegetarian"], allergies: [] }, [])).toEqual([]);
     const feta = draft("Feta Bowl", [["Spinach", ["spinach"]], ["Rice", ["rice"]], ["Feta", ["feta"]]]);
-    expect(checkRecipes([feta], stocked, { diet: null, allergies: ["dairy"] }, [])).toEqual([]);
+    expect(checkRecipes([feta], stocked, { diets: [], allergies: ["dairy"] }, [])).toEqual([]);
   });
 
   it("skips titles already in the library, in any spelling", () => {
@@ -101,5 +101,37 @@ describe("isNearDuplicate", () => {
     expect(isNearDuplicate(a, { meal: "Dinner", keys: ["chicken thigh", "lemon", "garlic", "rice", "dill"] })).toBe(true);
     expect(isNearDuplicate(a, { meal: "Lunch", keys: a.keys })).toBe(false);
     expect(isNearDuplicate(a, { meal: "Dinner", keys: ["chicken thigh", "lemon", "potato", "leek"] })).toBe(false);
+  });
+});
+
+describe("diet tags on saved recipes", () => {
+  const lowFodmap = { diets: ["low fodmap"], allergies: [] };
+  const rice = (claimed: string[]) =>
+    draft("Spinach Rice Bowl", [["Spinach", ["spinach"]], ["Rice", ["rice"]]], { diets: claimed });
+
+  it("tags the built-in diets a recipe passes, whatever the AI claimed", () => {
+    const [kept] = checkRecipes([rice([])], stocked, none, []);
+    expect(kept?.diets).toEqual(
+      expect.arrayContaining(["vegetarian", "vegan", "halal", "kosher", "gluten-free", "dairy-free", "egg-free"]),
+    );
+    const [chicken] = checkRecipes([lemonChicken], stocked, none, []);
+    expect(chicken?.diets).not.toContain("vegetarian");
+  });
+
+  it("keeps a recipe for a custom diet only when the AI confirmed it, in any spelling", () => {
+    expect(checkRecipes([rice([])], stocked, lowFodmap, [])).toEqual([]);
+    const [kept] = checkRecipes([rice(["Low-FODMAP"])], stocked, lowFodmap, []);
+    expect(kept?.diets).toContain("low fodmap");
+  });
+
+  it("ignores custom diets the cook didn't ask for", () => {
+    const [kept] = checkRecipes([rice(["keto", "made-up diet"])], stocked, none, []);
+    expect(kept?.diets).not.toContain("keto");
+    expect(kept?.diets).not.toContain("made-up diet");
+  });
+
+  it("rejects recipes containing a custom allergy, including by stand-in term", () => {
+    const shroom = draft("Mushroom Rice", [["Cremini", ["cremini", "mushroom"]], ["Rice", ["rice"]]]);
+    expect(checkRecipes([shroom], [...stocked, "Cremini"], { diets: [], allergies: ["mushrooms"] }, [])).toEqual([]);
   });
 });

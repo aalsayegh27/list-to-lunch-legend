@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { fitsPreferences } from "./diet";
-import { ingredientNames, meals } from "./kitchen-data";
+import { meals, recipeFacts } from "./kitchen-data";
 import { checkRecipes, type DraftRecipe } from "./recipe-check";
 import {
   aiRemainingToday,
@@ -72,7 +72,7 @@ export const generateRecipes = createServerFn({ method: "POST" })
     const prefs = preferences.prefs;
     const known = [...meals, ...library.meals];
     const avoidTitles = known
-      .filter((m) => fitsPreferences(ingredientNames(m), prefs, m.allergens))
+      .filter((m) => fitsPreferences(recipeFacts(m), prefs))
       .filter((m) => !data.meal || m.meal === data.meal)
       .slice(0, AVOID_TITLES)
       .map((m) => m.title);

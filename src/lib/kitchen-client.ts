@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { fitsPreferences, NO_PREFERENCES, type Preferences } from "./diet";
 import { getKitchen, type Kitchen } from "./kitchen.functions";
-import { ingredientNames, meals, missingFor, type Meal } from "./kitchen-data";
+import { meals, missingFor, recipeFacts, type Meal } from "./kitchen-data";
 import { NO_VOTES, type Votes } from "./recipe-library";
 
 export const kitchenQueryOptions = queryOptions<Kitchen>({
@@ -40,7 +40,7 @@ export function rankMeals(
         ? votes.mine[meal.id] === -1 && !votes.reported.includes(meal.id)
         : !hiddenByCook(meal.id, votes),
     )
-    .filter((meal) => fitsPreferences(ingredientNames(meal), prefs, meal.allergens))
+    .filter((meal) => fitsPreferences(recipeFacts(meal), prefs))
     .map((meal) => ({ meal, missing: missingFor(meal, stockedNames) }))
     .filter((r) => r.missing.length <= 1)
     .sort(

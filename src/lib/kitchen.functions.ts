@@ -14,6 +14,9 @@ import {
   type Votes,
 } from "./recipe-library";
 
+/** The only values the old single-diet profile column accepts. */
+const LEGACY_DIETS = ["vegetarian", "vegan", "pescatarian"];
+
 /** Starter slugs ("shrimp-rice") or AI recipe UUIDs; the database checks the rest. */
 const RECIPE_ID = /^[a-z0-9-]{3,64}$/;
 
@@ -135,14 +138,14 @@ export const reportRecipe = createServerFn({ method: "POST" })
 
 export const savePreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { diet: string | null; allergies: string[] }) =>
-    normalizePreferences(input),
-  )
+  .inputValidator((input: { diets: string[]; allergies: string[] }) => normalizePreferences(input))
   .handler(async ({ data, context }) => {
+    // Keep the old single-diet column roughly in step for anything still reading it.
+    const legacyDiet = data.diets.find((d) => LEGACY_DIETS.includes(d)) ?? null;
     const { error } = await untyped(context.supabase)
       .from("profiles")
       .upsert(
-        { id: context.userId, diet: data.diet, allergies: data.allergies },
+        { id: context.userId, diets: data.diets, diet: legacyDiet, allergies: data.allergies },
         { onConflict: "id" },
       );
     if (error) throw error;

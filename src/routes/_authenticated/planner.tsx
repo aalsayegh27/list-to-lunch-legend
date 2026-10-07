@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { MealCard } from "@/components/MealCard";
 import { PantryPanel } from "@/components/PantryPanel";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
-import { ALLERGEN_LABELS, DIET_LABELS, type Preferences } from "@/lib/diet";
+import { ALLERGEN_CATALOG, DIET_CATALOG, labelFor, type Preferences } from "@/lib/diet";
 import { kitchenQueryOptions, MAX_SHOWN, rankMeals, type RankedMeal } from "@/lib/kitchen-client";
 import {
   addPantryItems,
@@ -25,12 +25,18 @@ import { generateRecipes } from "@/lib/recipes.functions";
 const AUTO_SUGGEST_BELOW = 6;
 const AUTO_SUGGEST_KEY = "mise:auto-suggested";
 
+/** "a, b and c" */
+function listOf(items: string[], last = "and"): string {
+  return items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} ${last} ${items.at(-1)}`;
+}
+
 function describePreferences(prefs: Preferences): string | null {
-  const diet = prefs.diet ? DIET_LABELS[prefs.diet].toLowerCase() : null;
-  const avoid = prefs.allergies.map((a) => ALLERGEN_LABELS[a].toLowerCase());
-  if (!diet && avoid.length === 0) return null;
-  const without = avoid.length > 0 ? ` without ${avoid.join(" or ")}` : "";
-  return `Showing ${diet ? `${diet} ` : ""}meals${without}.`;
+  const diets = prefs.diets.map((d) => labelFor(d, DIET_CATALOG));
+  const avoid = prefs.allergies.map((a) => labelFor(a, ALLERGEN_CATALOG).toLowerCase());
+  if (diets.length === 0 && avoid.length === 0) return null;
+  const kind = diets.length > 0 ? `${listOf(diets)} ` : "";
+  const without = avoid.length > 0 ? ` without ${listOf(avoid, "or")}` : "";
+  return `Showing ${kind}meals${without}.`;
 }
 
 function alreadyAutoSuggested(): boolean {

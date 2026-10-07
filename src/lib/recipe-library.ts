@@ -21,6 +21,7 @@ export type RecipeRow = {
   ingredients: RecipeIngredient[];
   steps: string[];
   allergens: string[];
+  diets: string[];
 };
 
 /** Matches the starter recipes' blurbs: "Shrimp, arborio rice, garlic." */
@@ -43,6 +44,7 @@ export function recipeToMeal(row: RecipeRow): Meal {
     steps: row.steps,
     ingredients: row.ingredients,
     allergens: row.allergens,
+    diets: row.diets ?? [],
     source: "ai",
   };
 }
@@ -53,7 +55,7 @@ const LIBRARY_LIMIT = 500;
 export async function loadLibrary(db: SupabaseClient): Promise<{ meals: Meal[]; available: boolean }> {
   const { data, error } = await db
     .from("recipes")
-    .select("id, title, meal, minutes, ingredients, steps, allergens")
+    .select("id, title, meal, minutes, ingredients, steps, allergens, diets")
     .order("created_at", { ascending: false })
     .limit(LIBRARY_LIMIT);
   if (error) return { meals: [], available: false };
@@ -64,14 +66,17 @@ export async function loadPreferences(
   db: SupabaseClient,
   userId: string,
 ): Promise<{ prefs: Preferences; supported: boolean }> {
-  const { data, error } = await db
-    .from("profiles")
-    .select("diet, allergies")
-    .eq("id", userId)
-    .maybeSingle();
+  const profile = (columns: string) =>
+    db.from("profiles").select(columns).eq("id", userId).maybeSingle();
+  // Several diets need the flexible-dietary-needs migration; before it, fall back
+  // to the single diet column.
+  let { data, error } = await profile("diets, allergies");
+  if (error) ({ data, error } = await profile("diet, allergies"));
   if (error) return { prefs: NO_PREFERENCES, supported: false };
   return {
-    prefs: normalizePreferences((data ?? {}) as { diet?: string; allergies?: string[] }),
+    prefs: normalizePreferences(
+      (data ?? {}) as { diets?: string[]; diet?: string; allergies?: string[] },
+    ),
     supported: true,
   };
 }

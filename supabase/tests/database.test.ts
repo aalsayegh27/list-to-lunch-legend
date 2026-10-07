@@ -11,6 +11,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 const MIGRATIONS = join(__dirname, "..", "migrations");
 const SECRET = "test-server-secret";
+const FLEXIBLE_DIETS_MIGRATION = "20261006180000";
 const A = "00000000-0000-4000-8000-00000000000a";
 const B = "00000000-0000-4000-8000-00000000000b";
 const C = "00000000-0000-4000-8000-00000000000c";
@@ -74,7 +75,13 @@ beforeAll(async () => {
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
   `);
+  // Apply migrations in order, with a cook who picked a single diet before cooks
+  // could pick several, to check that choice carries over.
   for (const file of readdirSync(MIGRATIONS).sort()) {
+    if (file.startsWith(FLEXIBLE_DIETS_MIGRATION)) {
+      await db.exec(`INSERT INTO auth.users VALUES ('${A}', 'a@test'), ('${B}', 'b@test'), ('${C}', 'c@test');`);
+      await db.exec(`UPDATE profiles SET diet = 'pescatarian', allergies = '{sesame}' WHERE id = '${B}'`);
+    }
     await db.exec(readFileSync(join(MIGRATIONS, file), "utf8"));
   }
   // The real secret lives only in the hosts' environment; use a test one.
@@ -83,14 +90,35 @@ beforeAll(async () => {
   ]);
   // Tests make many batches; the cap test below sets the real limit itself.
   await db.exec("UPDATE ai_settings SET per_user_daily_batches = 100");
-  await db.exec(`INSERT INTO auth.users VALUES ('${A}', 'a@test'), ('${B}', 'b@test'), ('${C}', 'c@test');`);
 });
 
 describe("profiles", () => {
-  it("cooks can set their own dietary needs, within the allowed values", async () => {
-    await as(A, "UPDATE profiles SET diet = 'vegan', allergies = '{nuts}' WHERE id = $1", [A]);
-    expect(await as(A, "SELECT diet, allergies FROM profiles")).toEqual([{ diet: "vegan", allergies: ["nuts"] }]);
-    expect(await errorOf(() => as(A, "UPDATE profiles SET diet = 'keto' WHERE id = $1", [A]))).not.toBeNull();
+  it("carries a single diet chosen before the change over to the diet list", async () => {
+    expect(await as(B, "SELECT diets, allergies FROM profiles")).toEqual([
+      { diets: ["pescatarian"], allergies: ["sesame"] },
+    ]);
+  });
+
+  it("lets cooks set several diets and custom allergies", async () => {
+    await as(A, "UPDATE profiles SET diets = '{halal,low fodmap}', allergies = '{nuts,mushrooms}' WHERE id = $1", [A]);
+    expect(await as(A, "SELECT diets, allergies FROM profiles")).toEqual([
+      { diets: ["halal", "low fodmap"], allergies: ["nuts", "mushrooms"] },
+    ]);
+  });
+
+  it("only accepts tidy labels, and not too many", async () => {
+    const set = (col: string, value: string) =>
+      errorOf(() => as(A, `UPDATE profiles SET ${col} = $1 WHERE id = $2`, [value, A]));
+    expect(await set("diets", "{Halal}")).toMatch(/profiles_diets_valid/);
+    expect(await set("allergies", "{\"<script>\"}")).toMatch(/profiles_allergies_valid/);
+    expect(await set("diets", `{${Array.from({ length: 11 }, (_, i) => `d${i}`).join(",")}}`)).toMatch(
+      /profiles_diets_valid/,
+    );
+    expect(await set("allergies", `{${"x".repeat(41)}}`)).toMatch(/profiles_allergies_valid/);
+  });
+
+  it("keeps other cooks' needs private", async () => {
+    expect(await as(A, "SELECT id FROM profiles WHERE id = $1", [B])).toEqual([]);
   });
 });
 
@@ -125,8 +153,9 @@ describe("AI generation lock", () => {
 
   it("rejects malformed recipes even from the server", async () => {
     const bad = async (r: unknown) => errorOf(() => generate(C, [r]));
-    expect(await bad(recipe("Bad A", { allergens: ["satay"] }))).toMatch(/recipes_allergens_known/);
-    expect(await bad(recipe("Bad D", { diets: ["keto"] }))).toMatch(/recipes_diets_known/);
+    expect(await bad(recipe("Bad A", { allergens: ["Not A Label!"] }))).toMatch(/recipes_allergens_valid/);
+    expect(await bad(recipe("Bad D", { diets: ["x".repeat(41)] }))).toMatch(/recipes_diets_valid/);
+    expect(await bad(recipe("Custom Diet Rice", { diets: ["low fodmap", "halal"] }))).toBeNull();
     expect(
       await bad(recipe("Bad I", { ingredients: [{ name: 5, match: ["rice"] }, { name: "G", match: ["g"] }] })),
     ).toMatch(/recipes_ingredients_shape/);

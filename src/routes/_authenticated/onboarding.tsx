@@ -5,13 +5,12 @@ import { X } from "lucide-react";
 import { useState } from "react";
 
 import { guessCategory } from "@/lib/categorize";
+import { PreferencePicker } from "@/components/PreferencePicker";
 import {
-  ALLERGEN_LABELS,
-  ALLERGENS,
-  DIET_LABELS,
-  DIETS,
-  type Allergen,
-  type Diet,
+  ALLERGEN_CATALOG,
+  DIET_CATALOG,
+  MAX_ALLERGIES,
+  MAX_DIETS,
   type Preferences,
 } from "@/lib/diet";
 import { kitchenQueryOptions } from "@/lib/kitchen-client";
@@ -21,6 +20,7 @@ import {
   removePantryItem,
   savePreferences,
   seedStarterPantry,
+  type Kitchen,
 } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
 import { commonStaples, starterPantry } from "@/lib/starter-pantry";
@@ -65,30 +65,14 @@ function Onboarding() {
     await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
   }
 
+  // Show the change straight away, then save it.
   async function updatePrefs(next: Preferences) {
-    setBusy(true);
+    queryClient.setQueryData<Kitchen>(kitchenQueryOptions.queryKey, (k) =>
+      k ? { ...k, prefs: next } : k,
+    );
     await savePrefs({ data: next });
     await refresh();
-    setBusy(false);
   }
-
-  function toggleDiet(diet: Diet) {
-    if (!prefs) return;
-    void updatePrefs({ ...prefs, diet: prefs.diet === diet ? null : diet });
-  }
-
-  function toggleAllergy(allergen: Allergen) {
-    if (!prefs) return;
-    const allergies = prefs.allergies.includes(allergen)
-      ? prefs.allergies.filter((a) => a !== allergen)
-      : [...prefs.allergies, allergen];
-    void updatePrefs({ ...prefs, allergies });
-  }
-
-  const chipClass = (selected: boolean) =>
-    selected
-      ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold"
-      : "rounded-full bg-paper border border-ink/15 px-3 py-1.5 text-sm font-medium hover:border-sage";
 
   async function add(names: string[]) {
     setBusy(true);
@@ -207,40 +191,43 @@ function Onboarding() {
           <section className="mt-10">
             <h2 className="font-display text-xl">Dietary needs</h2>
             <p className="mt-1 text-sm text-ink/60">
-              Mise only suggests meals that fit. Tap again to clear.
+              Mise only suggests meals that fit all of them.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {DIETS.map((diet) => (
-                <button
-                  key={diet}
-                  disabled={busy}
-                  onClick={() => toggleDiet(diet)}
-                  aria-pressed={prefs.diet === diet}
-                  className={chipClass(prefs.diet === diet)}
-                >
-                  {prefs.diet === diet ? `✓ ${DIET_LABELS[diet]}` : DIET_LABELS[diet]}
-                </button>
-              ))}
-            </div>
+
             <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+              Diets
+            </p>
+            <div className="mt-2">
+              <PreferencePicker
+                catalog={DIET_CATALOG}
+                selected={prefs.diets}
+                onChange={(diets) => void updatePrefs({ ...prefs, diets })}
+                placeholder="Search or add a diet — e.g. halal, keto"
+                max={MAX_DIETS}
+              />
+            </div>
+            <p className="mt-2 text-xs text-ink/50">
+              Mise checks ingredients for vegetarian, vegan, pescatarian, halal, kosher,
+              gluten-free, dairy-free and egg-free, but can't tell whether meat is
+              certified halal or kosher. For any other diet, you'll only see recipes the
+              AI made for it.
+            </p>
+
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
               Allergies
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {ALLERGENS.map((allergen) => {
-                const on = prefs.allergies.includes(allergen);
-                return (
-                  <button
-                    key={allergen}
-                    disabled={busy}
-                    onClick={() => toggleAllergy(allergen)}
-                    aria-pressed={on}
-                    className={chipClass(on)}
-                  >
-                    {on ? `✓ ${ALLERGEN_LABELS[allergen]}` : ALLERGEN_LABELS[allergen]}
-                  </button>
-                );
-              })}
+            <div className="mt-2">
+              <PreferencePicker
+                catalog={ALLERGEN_CATALOG}
+                selected={prefs.allergies}
+                onChange={(allergies) => void updatePrefs({ ...prefs, allergies })}
+                placeholder="Search or add an allergy — e.g. peanuts, mushrooms"
+                max={MAX_ALLERGIES}
+              />
             </div>
+            <p className="mt-2 text-xs text-ink/50">
+              Mise checks recipe ingredients by name. Always double-check labels.
+            </p>
           </section>
         )}
 
