@@ -136,6 +136,7 @@ export type Database = {
           allergies: string[]
           created_at: string
           diet: string | null
+          diets: string[]
           email: string | null
           id: string
           onboarded_at: string | null
@@ -144,6 +145,7 @@ export type Database = {
           allergies?: string[]
           created_at?: string
           diet?: string | null
+          diets?: string[]
           email?: string | null
           id: string
           onboarded_at?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           allergies?: string[]
           created_at?: string
           diet?: string | null
+          diets?: string[]
           email?: string | null
           id?: string
           onboarded_at?: string | null
@@ -299,6 +302,10 @@ export type Database = {
       ai_reserve_generation: {
         Args: { p_server_secret: string }
         Returns: string
+      }
+      dietary_labels_valid: {
+        Args: { max_count: number; p: string[] }
+        Returns: boolean
       }
       is_recipe_id: { Args: { p: string }; Returns: boolean }
       recipe_ingredients_valid: { Args: { p: Json }; Returns: boolean }
