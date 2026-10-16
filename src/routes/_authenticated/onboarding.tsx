@@ -59,7 +59,6 @@ function Onboarding() {
   const pantry = usePantryActions(setProblem);
 
   const items = kitchen?.items ?? [];
-  const names = new Set(items.map((i) => i.name.toLowerCase()));
   const prefs = kitchen?.prefs;
 
   // Show the change straight away, then save it.
@@ -134,6 +133,7 @@ function Onboarding() {
 
         <section className="mt-10">
           <h2 className="font-display text-xl">Common staples</h2>
+          <p className="mt-1 text-sm text-ink/60">Tap to add. Tap a ✓ item to remove it.</p>
           <div className="mt-3 space-y-4">
             {commonStaples.map(({ category, items: staples }) => (
               <div key={category}>
@@ -142,15 +142,18 @@ function Onboarding() {
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(showAllStaples ? staples : staples.slice(0, STAPLES_SHOWN)).map((staple) => {
-                    const have = names.has(staple.toLowerCase());
+                    const owned = items.find((i) => i.name.toLowerCase() === staple.toLowerCase());
+                    const have = !!owned;
                     return (
                       <button
                         key={staple}
-                        disabled={have}
-                        onClick={() => add([staple])}
+                        // Tap again to take it back out of the kitchen.
+                        onClick={() => (owned ? void pantry.remove(owned.id) : add([staple]))}
+                        aria-pressed={have}
+                        title={have ? `Remove ${staple} from your kitchen` : `Add ${staple}`}
                         className={
                           have
-                            ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold"
+                            ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold hover:border-terracotta/50"
                             : "rounded-full bg-paper border border-ink/15 px-3 py-1.5 text-sm font-medium hover:border-sage"
                         }
                       >
