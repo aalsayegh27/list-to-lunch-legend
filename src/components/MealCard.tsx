@@ -1,8 +1,8 @@
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
 
+import { MealBanner } from "@/components/MealBanner";
 import { itemName, type Meal } from "@/lib/kitchen-data";
-import { mealImages } from "@/lib/meal-images";
 import { REPORT_REASON_LABELS, REPORT_REASONS, type ReportReason } from "@/lib/recipe-library";
 
 function Heart({ filled }: { filled: boolean }) {
@@ -50,20 +50,10 @@ export function MealCard({
   const [reporting, setReporting] = useState(false);
   const reasons = REPORT_REASONS.filter((r) => r !== "diet" || hasDiets);
   const missingList = missing ?? [];
-  const image = mealImages[meal.id];
 
   return (
     <article className="overflow-hidden bg-paper rounded-2xl border border-ink/10">
-      {image && (
-        <img
-          src={image}
-          alt={`Two-color illustration of ${meal.title}`}
-          loading="lazy"
-          width={1024}
-          height={768}
-          className="aspect-[4/3] w-full object-cover border-b border-ink/10"
-        />
-      )}
+      <MealBanner meal={meal} />
       <div className="p-5">
         <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-terracotta">
