@@ -207,6 +207,7 @@ export const seedStarterPantry = createServerFn({ method: "POST" })
     const taken = new Set((existing.data ?? []).map((r) => r.name.toLowerCase()));
 
     const rows = data.items
+      .filter((i) => i.name.trim().length <= 60)
       .filter((i) => i.name.trim() && !taken.has(i.name.trim().toLowerCase()))
       .slice(0, 300)
       .map((i) => ({
