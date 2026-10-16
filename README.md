@@ -2,6 +2,8 @@
 
 Turn the groceries you keep at home into simple lunches and dinners you can cook tonight.
 
+Live at **https://list-to-lunch-legend.vercel.app**
+
 ## Stack
 
 - TanStack Start (React, TypeScript), Tailwind CSS, built with Vite
