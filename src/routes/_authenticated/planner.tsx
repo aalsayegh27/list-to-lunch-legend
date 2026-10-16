@@ -30,7 +30,9 @@ const AUTO_SUGGEST_KEY = "mise:auto-suggested";
 
 /** "a, b and c" */
 function listOf(items: string[], last = "and"): string {
-  return items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} ${last} ${items.at(-1)}`;
+  return items.length < 2
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} ${last} ${items.at(-1)}`;
 }
 
 function describePreferences(prefs: Preferences): string | null {
@@ -199,7 +201,10 @@ function Planner() {
       const result = await generate({ data: { meal: filter === "All" ? null : filter } });
       setSuggestion(
         result.ok
-          ? { text: `Added ${result.added} new ${result.added === 1 ? "meal" : "meals"}.`, error: false }
+          ? {
+              text: `Added ${result.added} new ${result.added === 1 ? "meal" : "meals"}.`,
+              error: false,
+            }
           : { text: result.message, error: true },
       );
       await cache.resync();
@@ -244,7 +249,9 @@ function Planner() {
       shown: 6,
     },
   ];
-  const mainChoices = MAIN_INGREDIENTS.filter((m) => ranked.some((r) => ofType(r) && mainOf(r.meal) === m));
+  const mainChoices = MAIN_INGREDIENTS.filter((m) =>
+    ranked.some((r) => ofType(r) && mainOf(r.meal) === m),
+  );
   const filtered = maxMinutes !== null || main !== null;
   const canSuggest = !!kitchen?.ai.ready && kitchen.ai.remainingToday > 0;
   const hiddenVisible = hiddenMeals.filter(byFilter);
@@ -275,12 +282,12 @@ function Planner() {
         </p>
         <h1 className="font-display text-4xl md:text-5xl leading-tight mt-3 max-w-2xl">
           {readyNow > 0
-              ? `${readyNow} ${readyNow === 1 ? "meal" : "meals"} you can cook right now.`
-              : "Add a few more groceries and meals will appear."}
+            ? `${readyNow} ${readyNow === 1 ? "meal" : "meals"} you can cook right now.`
+            : "Add a few more groceries and meals will appear."}
         </h1>
         <p className="mt-4 text-ink/70 max-w-xl">
-          Oils and spices are assumed — {pantryBasics.join(", ").toLowerCase()}. Tap
-          anything you've run out of and the meals re-sort.
+          Oils and spices are assumed — {pantryBasics.join(", ").toLowerCase()}. Tap anything you've
+          run out of and the meals re-sort.
           {kitchen.prefsSupported && (
             <>
               {" "}
@@ -305,9 +312,7 @@ function Planner() {
           <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
             <div>
               <h2 className="font-display text-3xl">What you can cook</h2>
-              <p className="text-ink/60 mt-1 text-sm">
-                Best-liked first. Heart one to keep it.
-              </p>
+              <p className="text-ink/60 mt-1 text-sm">Best-liked first. Heart one to keep it.</p>
             </div>
             <div className="flex items-center gap-1 rounded-full border border-ink/10 p-1">
               {(["All", "Lunch", "Dinner"] as const).map((f) => (
@@ -395,7 +400,9 @@ function Planner() {
                   {extra > 0 && (
                     <button
                       onClick={() =>
-                        setExpanded(open ? expanded.filter((k) => k !== s.key) : [...expanded, s.key])
+                        setExpanded(
+                          open ? expanded.filter((k) => k !== s.key) : [...expanded, s.key],
+                        )
                       }
                       className="mt-4 rounded-full border border-ink/15 px-4 py-1.5 text-sm font-semibold text-ink/70 hover:border-sage"
                     >
@@ -421,8 +428,7 @@ function Planner() {
           {ranked.length === 0 && (
             <div className="bg-paper border border-ink/10 rounded-2xl p-6">
               <p className="text-sm text-ink/65">
-                Nothing matches your kitchen yet. Add a few more groceries on the left —
-                or{" "}
+                Nothing matches your kitchen yet. Add a few more groceries on the left — or{" "}
                 <Link to="/onboarding" className="font-semibold underline">
                   run through setup again
                 </Link>
@@ -439,7 +445,10 @@ function Planner() {
                 <>
                   You've hidden {hiddenVisible.length}{" "}
                   {hiddenVisible.length === 1 ? "meal" : "meals"} with a thumbs down.{" "}
-                  <button onClick={() => setShowHidden(!showHidden)} className="font-semibold underline">
+                  <button
+                    onClick={() => setShowHidden(!showHidden)}
+                    className="font-semibold underline"
+                  >
                     {showHidden ? "Hide them" : "Show them"}
                   </button>
                 </>
