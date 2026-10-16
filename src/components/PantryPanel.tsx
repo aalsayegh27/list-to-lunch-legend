@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
@@ -43,14 +42,9 @@ export function PantryPanel({
 
   return (
     <div className="bg-cream rounded-2xl border border-ink/10 p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between">
         <h3 className="font-display text-xl">Your kitchen</h3>
-        <span className="text-xs text-ink/50">
-          {inStock} in stock ·{" "}
-          <Link to="/onboarding" className="font-semibold text-ink underline">
-            Restock
-          </Link>
-        </span>
+        <span className="text-xs text-ink/50">{inStock} in stock</span>
       </div>
 
       <form onSubmit={submit} className="mt-4 flex gap-2">

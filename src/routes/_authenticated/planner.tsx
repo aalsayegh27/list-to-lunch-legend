@@ -288,15 +288,12 @@ function Planner() {
         <p className="mt-4 text-ink/70 max-w-xl">
           Oils and spices are assumed — {pantryBasics.join(", ").toLowerCase()}. Tap anything you've
           run out of and the meals re-sort.
-          {kitchen.prefsSupported && (
-            <>
-              {" "}
-              {describePreferences(kitchen.prefs)}{" "}
-              <Link to="/onboarding" className="font-semibold underline">
-                {describePreferences(kitchen.prefs) ? "Change" : "Set dietary needs"}
-              </Link>
-            </>
-          )}
+          {kitchen.prefsSupported && describePreferences(kitchen.prefs) && (
+            <> {describePreferences(kitchen.prefs)}</>
+          )}{" "}
+          <Link to="/onboarding" className="font-semibold underline">
+            Restock
+          </Link>
         </p>
       </section>
 
