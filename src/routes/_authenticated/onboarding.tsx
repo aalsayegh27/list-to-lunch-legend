@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { X } from "lucide-react";
 import { useState } from "react";
 
 import { guessCategory } from "@/lib/categorize";
 import { PreferencePicker } from "@/components/PreferencePicker";
+import { useKitchenCache } from "@/hooks/useKitchenCache";
+import { usePantryActions } from "@/hooks/usePantryActions";
 import {
   ALLERGEN_CATALOG,
   DIET_CATALOG,
@@ -14,14 +16,7 @@ import {
   type Preferences,
 } from "@/lib/diet";
 import { kitchenQueryOptions } from "@/lib/kitchen-client";
-import {
-  addPantryItems,
-  finishOnboarding,
-  removePantryItem,
-  savePreferences,
-  seedStarterPantry,
-  type Kitchen,
-} from "@/lib/kitchen.functions";
+import { finishOnboarding, savePreferences } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
 import { commonStaples, starterPantry } from "@/lib/starter-pantry";
 import { AppHeader } from "@/components/AppHeader";
@@ -46,68 +41,39 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 
 function Onboarding() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data: kitchen } = useQuery(kitchenQueryOptions);
-  const addItems = useServerFn(addPantryItems);
-  const seed = useServerFn(seedStarterPantry);
+  const cache = useKitchenCache();
   const done = useServerFn(finishOnboarding);
-  const removeItem = useServerFn(removePantryItem);
   const savePrefs = useServerFn(savePreferences);
 
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const pantry = usePantryActions(setProblem);
 
   const items = kitchen?.items ?? [];
   const names = new Set(items.map((i) => i.name.toLowerCase()));
   const prefs = kitchen?.prefs;
 
-  async function refresh() {
-    await queryClient.invalidateQueries({ queryKey: ["kitchen"] });
-  }
-
   // Show the change straight away, then save it.
   async function updatePrefs(next: Preferences) {
-    queryClient.setQueryData<Kitchen>(kitchenQueryOptions.queryKey, (k) =>
-      k ? { ...k, prefs: next } : k,
-    );
-    await savePrefs({ data: next });
-    await refresh();
+    cache.patch((k) => ({ ...k, prefs: next }));
+    try {
+      await savePrefs({ data: next });
+    } catch {
+      setProblem("Couldn't save your dietary needs. Try again in a bit.");
+      await cache.resync();
+    }
   }
 
-  async function add(names: string[]) {
-    setBusy(true);
-    await addItems({ data: { names } });
-    await refresh();
-    setBusy(false);
+  function add(names: string[]) {
+    setProblem(null);
+    void pantry.add(names);
   }
 
-  async function remove(id: string) {
-    setBusy(true);
-    await removeItem({ data: { id } });
-    await refresh();
-    setBusy(false);
-  }
-
-  async function loadSample() {
-    setBusy(true);
-    await seed({
-      data: {
-        items: starterPantry.map((i) => ({
-          name: i.name,
-          category: i.category,
-          inStock: i.inStock,
-        })),
-      },
-    });
-    await refresh();
-    setBusy(false);
-  }
-
-  async function finish() {
-    setBusy(true);
-    await done({});
-    await refresh();
-    navigate({ to: "/planner" });
+  function finish() {
+    cache.patch((k) => ({ ...k, onboarded: true }));
+    void navigate({ to: "/planner" });
+    done({}).catch(() => void cache.resync());
   }
 
   return (
@@ -133,7 +99,7 @@ function Onboarding() {
             const name = draft.trim();
             if (!name) return;
             setDraft("");
-            void add([name]);
+            add([name]);
           }}
           className="mt-8 flex gap-2 max-w-lg"
         >
@@ -156,6 +122,7 @@ function Onboarding() {
             Filed under <strong>{guessCategory(draft)}</strong>
           </p>
         )}
+        {problem && <p className="mt-2 text-sm text-terracotta">{problem}</p>}
 
         <section className="mt-10">
           <h2 className="font-display text-xl">Common staples</h2>
@@ -165,8 +132,8 @@ function Onboarding() {
               return (
                 <button
                   key={staple}
-                  disabled={have || busy}
-                  onClick={() => void add([staple])}
+                  disabled={have}
+                  onClick={() => add([staple])}
                   className={
                     have
                       ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold"
@@ -179,8 +146,7 @@ function Onboarding() {
             })}
           </div>
           <button
-            onClick={() => void loadSample()}
-            disabled={busy}
+            onClick={() => void pantry.seed(starterPantry)}
             className="mt-5 text-sm font-semibold underline text-ink"
           >
             Or start from a sample list →
@@ -244,10 +210,9 @@ function Onboarding() {
               >
                 {item.name}
                 <button
-                  onClick={() => void remove(item.id)}
-                  disabled={busy}
+                  onClick={() => void pantry.remove(item.id)}
                   aria-label={`Remove ${item.name}`}
-                  className="opacity-60 hover:opacity-100 disabled:opacity-30"
+                  className="opacity-60 hover:opacity-100"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -261,15 +226,13 @@ function Onboarding() {
 
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <button
-            onClick={() => void finish()}
-            disabled={busy}
-            className="rounded-full bg-terracotta text-cream px-6 py-3 text-sm font-semibold disabled:opacity-60"
+            onClick={finish}
+            className="rounded-full bg-terracotta text-cream px-6 py-3 text-sm font-semibold"
           >
             Done — show me meals
           </button>
           <button
-            onClick={() => void finish()}
-            disabled={busy}
+            onClick={finish}
             className="text-sm font-semibold text-ink/60 underline"
           >
             Skip for now

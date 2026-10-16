@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 
@@ -7,16 +7,11 @@ import { AppHeader } from "@/components/AppHeader";
 import { MealCard } from "@/components/MealCard";
 import { PantryPanel } from "@/components/PantryPanel";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
+import { useKitchenCache } from "@/hooks/useKitchenCache";
+import { usePantryActions } from "@/hooks/usePantryActions";
 import { ALLERGEN_CATALOG, DIET_CATALOG, labelFor, type Preferences } from "@/lib/diet";
 import { kitchenQueryOptions, MAX_SHOWN, rankMeals, type RankedMeal } from "@/lib/kitchen-client";
-import {
-  addPantryItems,
-  removePantryItem,
-  reportRecipe,
-  setVote,
-  updatePantryItem,
-  type Kitchen,
-} from "@/lib/kitchen.functions";
+import { reportRecipe, setVote, type Kitchen } from "@/lib/kitchen.functions";
 import { pantryBasics } from "@/lib/kitchen-data";
 import type { ReportReason } from "@/lib/recipe-library";
 import { generateRecipes } from "@/lib/recipes.functions";
@@ -69,13 +64,10 @@ export const Route = createFileRoute("/_authenticated/planner")({
 
 function Planner() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data: kitchen, isLoading } = useQuery(kitchenQueryOptions);
+  const cache = useKitchenCache();
   const favoriteToggle = useFavoriteToggle();
 
-  const addItems = useServerFn(addPantryItems);
-  const update = useServerFn(updatePantryItem);
-  const remove = useServerFn(removePantryItem);
   const generate = useServerFn(generateRecipes);
   const vote = useServerFn(setVote);
   const report = useServerFn(reportRecipe);
@@ -85,14 +77,13 @@ function Planner() {
   const [suggestion, setSuggestion] = useState<{ text: string; error: boolean } | null>(null);
   const [showHidden, setShowHidden] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const pantry = usePantryActions(setNotice);
 
   useEffect(() => {
     if (kitchen && !kitchen.onboarded && kitchen.items.length === 0) {
       navigate({ to: "/onboarding", replace: true });
     }
   }, [kitchen, navigate]);
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["kitchen"] });
 
   const ranked = useMemo(
     () => rankMeals(kitchen?.items ?? [], kitchen?.library, kitchen?.prefs, kitchen?.votes),
@@ -108,25 +99,25 @@ function Planner() {
 
   // Show a vote straight away (a thumbs down hides the card), then save it.
   function patchVotes(change: (votes: Kitchen["votes"]) => Kitchen["votes"]) {
-    queryClient.setQueryData<Kitchen>(kitchenQueryOptions.queryKey, (k) =>
-      k ? { ...k, votes: change(k.votes) } : k,
-    );
+    cache.patch((k) => ({ ...k, votes: change(k.votes) }));
   }
 
   async function castVote(mealId: string, value: 1 | -1 | 0) {
     patchVotes((v) => {
       const mine = { ...v.mine };
+      const before = mine[mealId] ?? 0;
       if (value === 0) delete mine[mealId];
       else mine[mealId] = value;
-      return { ...v, mine };
+      const scores = { ...v.scores, [mealId]: (v.scores[mealId] ?? 0) + value - before };
+      return { ...v, mine, scores };
     });
     setNotice(value === -1 ? "Hidden for you. You can bring it back below." : null);
     try {
       await vote({ data: { recipeId: mealId, vote: value } });
     } catch {
       setNotice("Couldn't save that vote. Try again in a bit.");
+      await cache.resync();
     }
-    await refresh();
   }
 
   async function reportMeal(mealId: string, reason: ReportReason) {
@@ -136,8 +127,8 @@ function Planner() {
       await report({ data: { recipeId: mealId, reason } });
     } catch {
       setNotice("Couldn't send that report. Try again in a bit.");
+      await cache.resync();
     }
-    await refresh();
   }
 
   function card({ meal, missing }: RankedMeal) {
@@ -169,7 +160,7 @@ function Planner() {
           ? { text: `Added ${result.added} new ${result.added === 1 ? "meal" : "meals"}.`, error: false }
           : { text: result.message, error: true },
       );
-      await refresh();
+      await cache.resync();
     } catch {
       setSuggestion({ text: "Something went wrong. Try again in a bit.", error: true });
     } finally {
@@ -236,18 +227,9 @@ function Planner() {
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-[1fr_1.35fr] gap-8 items-start">
         <PantryPanel
           items={kitchen.items}
-          onAdd={async (name) => {
-            await addItems({ data: { names: [name] } });
-            await refresh();
-          }}
-          onUpdate={async (id, patch) => {
-            await update({ data: { id, ...patch } });
-            await refresh();
-          }}
-          onRemove={async (id) => {
-            await remove({ data: { id } });
-            await refresh();
-          }}
+          onAdd={(name) => void pantry.add([name])}
+          onUpdate={(id, patch) => void pantry.update(id, patch)}
+          onRemove={(id) => void pantry.remove(id)}
         />
 
         <div>

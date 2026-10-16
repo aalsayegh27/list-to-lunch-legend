@@ -20,6 +20,8 @@ const LEGACY_DIETS = ["vegetarian", "vegan", "pescatarian"];
 /** Starter slugs ("shrimp-rice") or AI recipe UUIDs; the database checks the rest. */
 const RECIPE_ID = /^[a-z0-9-]{3,64}$/;
 
+const PANTRY_COLUMNS = "id, name, category, in_stock";
+
 export type PantryRow = {
   id: string;
   name: string;
@@ -53,11 +55,11 @@ export const getKitchen = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const db = untyped(supabase);
 
-    const [profile, items, favorites, library, preferences, votes] = await Promise.all([
+    const [profile, items, favorites, library, preferences, votes, remaining] = await Promise.all([
       supabase.from("profiles").select("email, onboarded_at").eq("id", userId).maybeSingle(),
       supabase
         .from("pantry_items")
-        .select("id, name, category, in_stock")
+        .select(PANTRY_COLUMNS)
         .eq("user_id", userId)
         // Items added in one batch share a created_at, so break ties by name —
         // otherwise Postgres can reshuffle them after every update.
@@ -72,6 +74,7 @@ export const getKitchen = createServerFn({ method: "GET" })
       loadLibrary(db),
       loadPreferences(db, userId),
       loadVotes(db, userId),
+      aiRemainingToday(db),
     ]);
 
     if (items.error) throw items.error;
@@ -90,7 +93,7 @@ export const getKitchen = createServerFn({ method: "GET" })
       library: library.meals,
       prefs: preferences.prefs,
       prefsSupported: preferences.supported,
-      ai: { ready: aiReady, remainingToday: aiReady ? await aiRemainingToday(db) : 0 },
+      ai: { ready: aiReady, remainingToday: aiReady ? remaining : 0 },
       votes,
     };
   });
@@ -162,7 +165,7 @@ export const addPantryItems = createServerFn({ method: "POST" })
     return { names, category: input.category };
   })
   .handler(async ({ data, context }) => {
-    if (data.names.length === 0) return { added: 0 };
+    if (data.names.length === 0) return { items: [] };
     const { supabase, userId } = context;
 
     const existing = await supabase.from("pantry_items").select("name").eq("user_id", userId);
@@ -183,10 +186,13 @@ export const addPantryItems = createServerFn({ method: "POST" })
         in_stock: true,
       }));
 
-    if (rows.length === 0) return { added: 0 };
-    const { error } = await supabase.from("pantry_items").insert(rows);
+    if (rows.length === 0) return { items: [] };
+    const { data: added, error } = await supabase
+      .from("pantry_items")
+      .insert(rows)
+      .select(PANTRY_COLUMNS);
     if (error) throw error;
-    return { added: rows.length };
+    return { items: (added ?? []) as PantryRow[] };
   });
 
 export const seedStarterPantry = createServerFn({ method: "POST" })
@@ -210,10 +216,13 @@ export const seedStarterPantry = createServerFn({ method: "POST" })
         in_stock: i.inStock,
       }));
 
-    if (rows.length === 0) return { added: 0 };
-    const { error } = await supabase.from("pantry_items").insert(rows);
+    if (rows.length === 0) return { items: [] };
+    const { data: added, error } = await supabase
+      .from("pantry_items")
+      .insert(rows)
+      .select(PANTRY_COLUMNS);
     if (error) throw error;
-    return { added: rows.length };
+    return { items: (added ?? []) as PantryRow[] };
   });
 
 export const updatePantryItem = createServerFn({ method: "POST" })
