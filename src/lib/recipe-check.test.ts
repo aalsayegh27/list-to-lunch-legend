@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Meal } from "./kitchen-data";
-import { checkRecipes, isNearDuplicate, type DraftRecipe } from "./recipe-check";
+import { checkRecipes, isNearDuplicate, tidyTitle, type DraftRecipe } from "./recipe-check";
 
 const stocked = ["Chicken thighs", "Lemons", "Garlic", "Rice", "Spinach", "Baby bell peppers"];
 const none = { diets: [], allergies: [] };
@@ -65,6 +65,18 @@ describe("checkRecipes", () => {
     expect(checkRecipes([lemonChicken], stocked, { diets: ["vegetarian"], allergies: [] }, [])).toEqual([]);
     const feta = draft("Feta Bowl", [["Spinach", ["spinach"]], ["Rice", ["rice"]], ["Feta", ["feta"]]]);
     expect(checkRecipes([feta], stocked, { diets: [], allergies: ["dairy"] }, [])).toEqual([]);
+  });
+
+  it("names dishes by what's in them, not what they leave out", () => {
+    expect(tidyTitle("Ginger Shrimp & Sweet Potato Coconut-Free Curry Soup")).toBe(
+      "Ginger Shrimp & Sweet Potato Curry Soup",
+    );
+    expect(tidyTitle("Honey-Free Ginger Chicken Thighs")).toBe("Ginger Chicken Thighs");
+    expect(tidyTitle("Lentil Soup without Onion")).toBe("Lentil Soup");
+    expect(tidyTitle("Dairy Free Pancakes & Gluten-Free")).toBe("Pancakes");
+    expect(tidyTitle("Freekeh & Carefree Herb Salad")).toBe("Freekeh & Carefree Herb Salad");
+    const [kept] = checkRecipes([{ ...lemonChicken, title: "Nut-Free Lemon Garlic Chicken & Rice" }], stocked, none, []);
+    expect(kept?.title).toBe("Lemon Garlic Chicken & Rice");
   });
 
   it("skips titles already in the library, in any spelling", () => {

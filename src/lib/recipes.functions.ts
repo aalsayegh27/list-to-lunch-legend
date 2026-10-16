@@ -18,7 +18,7 @@ export type GenerateResult =
   | { ok: false; message: string; remainingToday: number };
 
 /** How many existing titles to show the AI so it doesn't repeat them. */
-const AVOID_TITLES = 40;
+const KNOWN_DISHES = 40;
 
 const LIMIT_MESSAGES: Record<string, string> = {
   ai_user_limit: "You've used today's new-meal suggestions. More tomorrow!",
@@ -71,10 +71,10 @@ export const generateRecipes = createServerFn({ method: "POST" })
 
     const prefs = preferences.prefs;
     const known = [...meals, ...library.meals];
-    const avoidTitles = known
+    const knownDishes = known
       .filter((m) => fitsPreferences(recipeFacts(m), prefs))
       .filter((m) => !data.meal || m.meal === data.meal)
-      .slice(0, AVOID_TITLES)
+      .slice(0, KNOWN_DISHES)
       .map((m) => m.title);
 
     let drafts: DraftRecipe[] = [];
@@ -86,7 +86,7 @@ export const generateRecipes = createServerFn({ method: "POST" })
         stockedNames,
         prefs,
         meal: data.meal,
-        avoidTitles,
+        knownDishes,
       });
       drafts = batch.recipes;
       usage = batch.usage;

@@ -52,6 +52,21 @@ function clean(text: string, max: number): string {
   return text.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+/**
+ * Titles name what's in a dish, not what it leaves out: "Coconut-Free Curry Soup"
+ * becomes "Curry Soup". Also drops a joining word left dangling at either end.
+ */
+export function tidyTitle(title: string): string {
+  return clean(
+    title
+      .replace(/\b[A-Za-z]+[- ]free\b/gi, " ")
+      .replace(/\b(?:without|no) [A-Za-z]+\b/gi, " ")
+      .replace(/\s+(?:&|and|with)\s*$/i, "")
+      .replace(/^\s*(?:&|and|with)\s+/i, ""),
+    80,
+  );
+}
+
 function cleanIngredient(raw: RecipeIngredient): RecipeIngredient | null {
   const name = clean(raw.name, 60);
   if (!name) return null;
@@ -78,7 +93,7 @@ export function checkRecipes(
   const kept: CheckedRecipe[] = [];
 
   for (const draft of drafts) {
-    const title = clean(draft.title, 80);
+    const title = tidyTitle(draft.title);
     const key = titleKey(title);
     if (title.length < 3 || !key || seen.has(key)) continue;
     if (!Number.isInteger(draft.minutes) || draft.minutes < 5 || draft.minutes > 180) continue;
