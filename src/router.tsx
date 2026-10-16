@@ -4,8 +4,10 @@ import { routeTree } from "./routeTree.gen";
 
 /**
  * After a new deploy, a tab opened earlier asks for page files that no longer exist,
- * so its links silently fail. Reload onto the current version instead (at most once
- * a minute, so a genuinely missing file can't cause a reload loop).
+ * so its links silently fail. And a browser that asked for a new file a moment before
+ * it went live may have kept the "not found" answer. Re-fetch any failed page files
+ * past the browser cache, then reload onto the current version (at most once a
+ * minute, so a genuinely missing file can't cause a reload loop).
  */
 if (typeof window !== "undefined") {
   window.addEventListener("vite:preloadError", (event) => {
@@ -18,7 +20,17 @@ if (typeof window !== "undefined") {
       // Storage blocked: reload anyway.
     }
     event.preventDefault();
-    window.location.reload();
+    const failed = performance
+      .getEntriesByType("resource")
+      .filter(
+        (e) =>
+          e.name.includes("/assets/") &&
+          ((e as PerformanceResourceTiming).responseStatus ?? 0) >= 400,
+      )
+      .map((e) => e.name);
+    void Promise.all(
+      [...new Set(failed)].map((url) => fetch(url, { cache: "reload" }).catch(() => null)),
+    ).finally(() => window.location.reload());
   });
 }
 
