@@ -20,6 +20,14 @@ export type GenerateResult =
 /** How many existing titles to show the AI so it doesn't repeat them. */
 const KNOWN_DISHES = 40;
 
+/**
+ * Bounds what a cook's pantry adds to the prompt. Cooks can write pantry rows
+ * straight to the database, so without this a huge pantry could make one batch
+ * cost far more than the max_batch_cost_usd the caps assume.
+ */
+const PROMPT_ITEMS = 150;
+const PROMPT_ITEM_CHARS = 60;
+
 const LIMIT_MESSAGES: Record<string, string> = {
   ai_user_limit: "You've used today's new-meal suggestions. More tomorrow!",
   ai_budget: "Mise has handed out all of today's new-meal suggestions. Try again tomorrow.",
@@ -51,7 +59,10 @@ export const generateRecipes = createServerFn({ method: "POST" })
     }
     if (pantry.error) throw pantry.error;
 
-    const stockedNames = (pantry.data ?? []).map((r) => r.name);
+    const stockedNames = (pantry.data ?? [])
+      .map((r) => r.name.trim().slice(0, PROMPT_ITEM_CHARS))
+      .filter(Boolean)
+      .slice(0, PROMPT_ITEMS);
     if (stockedNames.length < 3) {
       return {
         ok: false,

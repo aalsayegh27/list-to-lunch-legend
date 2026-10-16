@@ -306,3 +306,39 @@ describe("diet reports", () => {
     expect(await as(A, "SELECT id FROM recipes WHERE id = $1", [id])).toHaveLength(1);
   });
 });
+
+describe("limits on what cooks can store", () => {
+  const addItem = (name: string) =>
+    as(A, "INSERT INTO pantry_items (user_id, name) VALUES ($1, $2)", [A, name]);
+
+  it("rejects blank or very long pantry item names", async () => {
+    expect(await errorOf(() => addItem("x".repeat(61)))).toMatch(/pantry_items_name_length/);
+    expect(await errorOf(() => addItem("   "))).toMatch(/pantry_items_name_length/);
+    expect(await errorOf(() => addItem("Rice"))).toBeNull();
+  });
+
+  it("rejects oversized saved recipes and unknown recipe ids", async () => {
+    const save = (mealId: string, snapshot: unknown) =>
+      as(A, "INSERT INTO favorite_recipes (user_id, meal_id, snapshot) VALUES ($1, $2, $3)", [
+        A,
+        mealId,
+        JSON.stringify(snapshot),
+      ]);
+    expect(await errorOf(() => save("shrimp-rice", { blurb: "x".repeat(20_001) }))).toMatch(
+      /snapshot_size/,
+    );
+    expect(await errorOf(() => save("<script>", { title: "x" }))).toMatch(/meal_id_valid/);
+    expect(await errorOf(() => save("shrimp-rice", { title: "Garlic Shrimp & Lemon Rice" }))).toBeNull();
+  });
+
+  it("caps a pantry at 500 items", async () => {
+    const [{ n }] = await as<{ n: number }>(A, "SELECT count(*)::int AS n FROM pantry_items");
+    await as(
+      A,
+      "INSERT INTO pantry_items (user_id, name) SELECT $1, 'Item ' || g FROM generate_series(1, $2::int) g",
+      [A, 500 - n],
+    );
+    expect(await errorOf(() => addItem("One too many"))).toMatch(/pantry_full/);
+    expect(await errorOf(() => as(B, "INSERT INTO pantry_items (user_id, name) VALUES ($1, 'Rice')", [B]))).toBeNull();
+  });
+});

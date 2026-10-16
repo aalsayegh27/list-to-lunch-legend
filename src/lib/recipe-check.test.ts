@@ -67,6 +67,17 @@ describe("checkRecipes", () => {
     expect(checkRecipes([feta], stocked, { diets: [], allergies: ["dairy"] }, [])).toEqual([]);
   });
 
+  it("keeps links and addresses out of the shared library", () => {
+    const linked = [
+      { ...lemonChicken, steps: ["Order at www.example.com.", "Cook."] },
+      { ...lemonChicken, steps: ["See https://x.test for more.", "Cook."] },
+      { ...lemonChicken, title: "Email chef@site for tips" },
+      { ...lemonChicken, steps: ["<img src=x>", "Cook."] },
+    ];
+    expect(checkRecipes(linked, stocked, none, [])).toEqual([]);
+    expect(checkRecipes([lemonChicken], stocked, none, [])).toHaveLength(1);
+  });
+
   it("names dishes by what's in them, not what they leave out", () => {
     expect(tidyTitle("Ginger Shrimp & Sweet Potato Coconut-Free Curry Soup")).toBe(
       "Ginger Shrimp & Sweet Potato Curry Soup",

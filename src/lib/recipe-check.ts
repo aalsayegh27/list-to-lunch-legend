@@ -52,6 +52,11 @@ function clean(text: string, max: number): string {
   return text.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+/** Web addresses, emails and the like have no place in a recipe. */
+function looksLikeLink(text: string): boolean {
+  return /https?:|www\.|\.(?:com|net|org|io|ly|co)\b|@\w|<[a-z/]/i.test(text);
+}
+
 /**
  * Titles name what's in a dish, not what it leaves out: "Coconut-Free Curry Soup"
  * becomes "Curry Soup". Also drops a joining word left dangling at either end.
@@ -106,6 +111,9 @@ export function checkRecipes(
 
     const steps = draft.steps.map((s) => clean(s, 300)).filter(Boolean);
     if (steps.length < 2 || steps.length > 10) continue;
+    // Recipes are shared with every cook, so a grocery list that talks the AI into
+    // adding a link or an address mustn't get it into the library.
+    if ([title, ...steps, ...ingredients.map((i) => i.name)].some(looksLikeLink)) continue;
 
     const missing = ingredients.filter((i) => !stockSatisfies(i.match, stockedNames));
     if (missing.length > 1) continue;

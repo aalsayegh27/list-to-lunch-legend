@@ -19,7 +19,19 @@ export default defineConfig({
     }),
     // Picks the hosting target automatically: Vercel's output when built on Vercel,
     // a plain Node server otherwise.
-    nitro(),
+    nitro({
+      routeRules: {
+        "/**": {
+          headers: {
+            // Nobody else may show Mise inside a frame (clickjacking).
+            "X-Frame-Options": "DENY",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+          },
+        },
+      },
+    }),
     viteReact(),
   ],
 });
