@@ -336,7 +336,7 @@ function Planner() {
                   ≤ {limit} min
                 </FilterChip>
               ))}
-              <span className="mx-1 h-4 w-px bg-ink/15" aria-hidden="true" />
+              <span className="mx-1 hidden h-4 w-px bg-ink/15 sm:block" aria-hidden="true" />
               {mainChoices.map((m) => (
                 <FilterChip key={m} on={main === m} onClick={() => setMain(main === m ? null : m)}>
                   {m}
@@ -352,8 +352,8 @@ function Planner() {
               const extra = s.meals.length - s.shown;
               return (
                 <div key={s.key} className="mb-8">
-                  <div className="flex items-baseline justify-between gap-3 mb-3">
-                    <h3 className="font-display text-xl">
+                  <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 mb-3">
+                    <h3 className="font-display text-xl whitespace-nowrap">
                       {s.title} <span className="text-ink/40">{s.meals.length}</span>
                     </h3>
                     <p className="text-xs text-ink/50">{s.note}</p>
