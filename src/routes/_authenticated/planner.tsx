@@ -246,6 +246,7 @@ function Planner() {
   ];
   const mainChoices = MAIN_INGREDIENTS.filter((m) => ranked.some((r) => ofType(r) && mainOf(r.meal) === m));
   const filtered = maxMinutes !== null || main !== null;
+  const canSuggest = !!kitchen?.ai.ready && kitchen.ai.remainingToday > 0;
   const hiddenVisible = hiddenMeals.filter(byFilter);
   const readyNow = ranked.filter((r) => r.missing.length === 0).length;
   const savedIds = new Set((kitchen?.favorites ?? []).map((f) => f.meal_id));
@@ -346,7 +347,8 @@ function Planner() {
           )}
 
           {sections
-            .filter((s) => s.meals.length > 0)
+            // "Ready now" stays visible when empty, so a new cook sees why and what to do.
+            .filter((s) => s.meals.length > 0 || (s.key === "ready" && matches.length > 0))
             .map((s) => {
               const open = expanded.includes(s.key);
               const extra = s.meals.length - s.shown;
@@ -358,6 +360,35 @@ function Planner() {
                     </h3>
                     <p className="text-xs text-ink/50">{s.note}</p>
                   </div>
+                  {s.meals.length === 0 && (filtered || filter !== "All") && (
+                    <div className="bg-paper border border-ink/10 rounded-2xl p-6">
+                      <p className="text-sm text-ink/65">
+                        None of the meals you can make right now match these filters.{" "}
+                        <button onClick={clearFilters} className="font-semibold underline">
+                          Show all meals
+                        </button>
+                      </p>
+                    </div>
+                  )}
+                  {s.meals.length === 0 && !filtered && filter === "All" && (
+                    <div className="bg-paper border border-ink/10 rounded-2xl p-6">
+                      <p className="text-sm text-ink/65">
+                        Nothing uses only what's in your kitchen yet.{" "}
+                        {canSuggest
+                          ? "Ask for new meals and Mise will write some around exactly what you have, or add a few more groceries."
+                          : "Add a few more groceries to your kitchen and meals will show up here."}
+                      </p>
+                      {canSuggest && (
+                        <button
+                          onClick={() => void suggestMeals()}
+                          disabled={suggesting}
+                          className="mt-4 rounded-full bg-ink text-cream px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
+                        >
+                          {suggesting ? "Cooking up ideas…" : "Suggest meals from my kitchen"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="grid sm:grid-cols-2 gap-4">
                     {(open ? s.meals : s.meals.slice(0, s.shown)).map(card)}
                   </div>

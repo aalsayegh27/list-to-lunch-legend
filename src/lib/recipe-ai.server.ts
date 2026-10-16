@@ -37,7 +37,7 @@ const BatchSchema = z.object({ recipes: z.array(RecipeSchema) });
 const SYSTEM_PROMPT = `You write recipes for Mise, an app that suggests simple lunches and dinners a home cook can make tonight from the groceries they already keep.
 
 Write each recipe for one home cook on a weeknight:
-- Build it from the cook's in-stock groceries. It may need at most one ingredient that isn't on their list, and none is better.
+- Build it from the cook's in-stock groceries. At least four of the recipes must need nothing beyond their list; the rest may need one extra ingredient at most. A small kitchen calls for simple dishes: three or four well-chosen ingredients is plenty.
 - These basics are always in the kitchen, so leave them out of the ingredients: ${pantryBasics.join(", ")}, and water.
 - List every other ingredient the recipe uses, named the way a shopper would write it ("Chicken thighs", "Cherry tomatoes").
 - For each ingredient, "match" holds one to three lowercase, singular grocery names that would count as having it, most specific first (for cherry tomatoes: "cherry tomato", "tomato").
