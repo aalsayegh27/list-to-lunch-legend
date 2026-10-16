@@ -21,6 +21,13 @@ import { pantryBasics } from "@/lib/kitchen-data";
 import { commonStaples, starterPantry } from "@/lib/starter-pantry";
 import { AppHeader } from "@/components/AppHeader";
 
+/** Staples shown per category before "Show more". */
+const STAPLES_SHOWN = 5;
+const hiddenStaples = commonStaples.reduce(
+  (n, { items }) => n + Math.max(0, items.length - STAPLES_SHOWN),
+  0,
+);
+
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
     meta: [
@@ -48,6 +55,7 @@ function Onboarding() {
 
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  const [showAllStaples, setShowAllStaples] = useState(false);
   const pantry = usePantryActions(setProblem);
 
   const items = kitchen?.items ?? [];
@@ -126,31 +134,50 @@ function Onboarding() {
 
         <section className="mt-10">
           <h2 className="font-display text-xl">Common staples</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {commonStaples.map((staple) => {
-              const have = names.has(staple.toLowerCase());
-              return (
-                <button
-                  key={staple}
-                  disabled={have}
-                  onClick={() => add([staple])}
-                  className={
-                    have
-                      ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold"
-                      : "rounded-full bg-paper border border-ink/15 px-3 py-1.5 text-sm font-medium hover:border-sage"
-                  }
-                >
-                  {have ? `✓ ${staple}` : `+ ${staple}`}
-                </button>
-              );
-            })}
+          <div className="mt-3 space-y-4">
+            {commonStaples.map(({ category, items: staples }) => (
+              <div key={category}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                  {category}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(showAllStaples ? staples : staples.slice(0, STAPLES_SHOWN)).map((staple) => {
+                    const have = names.has(staple.toLowerCase());
+                    return (
+                      <button
+                        key={staple}
+                        disabled={have}
+                        onClick={() => add([staple])}
+                        className={
+                          have
+                            ? "rounded-full bg-sage/15 text-sagedark border border-sage/30 px-3 py-1.5 text-sm font-semibold"
+                            : "rounded-full bg-paper border border-ink/15 px-3 py-1.5 text-sm font-medium hover:border-sage"
+                        }
+                      >
+                        {have ? `✓ ${staple}` : `+ ${staple}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
-          <button
-            onClick={() => void pantry.seed(starterPantry)}
-            className="mt-5 text-sm font-semibold underline text-ink"
-          >
-            Or start from a sample list →
-          </button>
+          <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+            {hiddenStaples > 0 && (
+              <button
+                onClick={() => setShowAllStaples(!showAllStaples)}
+                className="rounded-full border border-ink/15 px-4 py-1.5 text-sm font-semibold text-ink/70 hover:border-sage"
+              >
+                {showAllStaples ? "Show fewer staples" : `Show ${hiddenStaples} more staples`}
+              </button>
+            )}
+            <button
+              onClick={() => void pantry.seed(starterPantry)}
+              className="text-sm font-semibold underline text-ink"
+            >
+              Or start from a sample list →
+            </button>
+          </div>
         </section>
 
         {kitchen?.prefsSupported && prefs && (

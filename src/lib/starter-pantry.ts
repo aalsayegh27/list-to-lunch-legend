@@ -67,26 +67,41 @@ export const starterPantry: StarterItem[] = [
   { name: "Kimchi", category: "Pantry", inStock: true },
 ];
 
-/** Handy taps offered on the pantry setup screen. */
-export const commonStaples: string[] = [
-  "Eggs",
-  "Milk",
-  "Butter",
-  "Bread",
-  "Rice",
-  "Pasta",
-  "Onions",
-  "Garlic",
-  "Potatoes",
-  "Carrots",
-  "Cherry tomatoes",
-  "Lemons",
-  "Chicken breast",
-  "Ground beef",
-  "Greek yogurt",
-  "Cheddar",
-  "Canned chickpeas",
-  "Chicken stock",
-  "Frozen peas",
-  "Parsley",
+/**
+ * Handy taps offered on the pantry setup screen, by category, most common first.
+ * The setup screen shows the first few of each until the cook asks for the rest.
+ */
+export const commonStaples: { category: PantryCategory; items: string[] }[] = [
+  {
+    category: "Produce",
+    items: [
+      "Onions", "Garlic", "Potatoes", "Carrots", "Cherry tomatoes", "Lemons", "Bell peppers",
+      "Spinach", "Broccoli", "Zucchini", "Mushrooms", "Sweet potatoes", "Cucumber", "Avocado",
+      "Limes", "Ginger",
+    ],
+  },
+  {
+    category: "Protein",
+    items: [
+      "Chicken breast", "Chicken thighs", "Ground beef", "Salmon", "Shrimp", "Bacon", "Sausages",
+      "Tofu", "Ground turkey",
+    ],
+  },
+  {
+    category: "Dairy & Eggs",
+    items: ["Eggs", "Milk", "Butter", "Cheddar", "Greek yogurt", "Parmesan", "Mozzarella", "Feta"],
+  },
+  {
+    category: "Grains",
+    items: ["Rice", "Pasta", "Bread", "Tortillas", "Oats", "Noodles", "Couscous", "Quinoa"],
+  },
+  {
+    category: "Pantry",
+    items: [
+      "Canned chickpeas", "Canned tomatoes", "Chicken stock", "Black beans", "Lentils",
+      "Canned tuna", "Coconut milk", "Soy sauce", "Peanut butter", "Honey", "Tomato paste", "Pesto",
+    ],
+  },
+  { category: "Frozen", items: ["Frozen peas", "Frozen spinach", "Frozen berries"] },
+  { category: "Herbs", items: ["Parsley", "Basil", "Coriander", "Dill"] },
 ];

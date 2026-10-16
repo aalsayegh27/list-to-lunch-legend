@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { guessCategory } from "./categorize";
+import { commonStaples } from "./starter-pantry";
 import {
   ALLERGEN_CATALOG,
   DIET_CATALOG,
@@ -84,6 +85,13 @@ describe("guessCategory", () => {
     ["Bay leaves", "Herbs"],
   ])("%s → %s", (name, category) => {
     expect(guessCategory(name)).toBe(category);
+  });
+
+  it("files every setup-screen staple under the heading it's shown in", () => {
+    const misfiled = commonStaples.flatMap(({ category, items }) =>
+      items.filter((name) => guessCategory(name) !== category).map((name) => `${name} → ${guessCategory(name)}`),
+    );
+    expect(misfiled).toEqual([]);
   });
 });
 
