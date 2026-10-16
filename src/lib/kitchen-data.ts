@@ -121,6 +121,8 @@ export type Meal = {
   /** Diets the recipe is confirmed to fit, including AI-confirmed custom ones. */
   diets?: string[];
   source?: "starter" | "ai";
+  /** When an AI recipe joined the library. */
+  createdAt?: string;
 };
 
 /** What the cook would still need to buy, as ingredient ids or names. */

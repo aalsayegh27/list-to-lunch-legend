@@ -10,9 +10,17 @@ import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import { useKitchenCache } from "@/hooks/useKitchenCache";
 import { usePantryActions } from "@/hooks/usePantryActions";
 import { ALLERGEN_CATALOG, DIET_CATALOG, labelFor, type Preferences } from "@/lib/diet";
-import { kitchenQueryOptions, MAX_SHOWN, rankMeals, type RankedMeal } from "@/lib/kitchen-client";
+import { kitchenQueryOptions, rankMeals, type RankedMeal } from "@/lib/kitchen-client";
 import { reportRecipe, setVote, type Kitchen } from "@/lib/kitchen.functions";
-import { pantryBasics } from "@/lib/kitchen-data";
+import { pantryBasics, type Meal } from "@/lib/kitchen-data";
+import {
+  isNew,
+  MAIN_INGREDIENTS,
+  mainIngredient,
+  POPULAR_SCORE,
+  TIME_LIMITS,
+  type MainIngredient,
+} from "@/lib/meal-tags";
 import type { ReportReason } from "@/lib/recipe-library";
 import { generateRecipes } from "@/lib/recipes.functions";
 
@@ -32,6 +40,30 @@ function describePreferences(prefs: Preferences): string | null {
   const kind = diets.length > 0 ? `${listOf(diets)} ` : "";
   const without = avoid.length > 0 ? ` without ${listOf(avoid, "or")}` : "";
   return `Showing ${kind}meals${without}.`;
+}
+
+function FilterChip({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      className={
+        on
+          ? "rounded-full bg-ink text-cream border border-ink px-3 py-1 text-xs font-semibold"
+          : "rounded-full bg-paper border border-ink/15 px-3 py-1 text-xs font-medium text-ink/70 hover:border-sage"
+      }
+    >
+      {children}
+    </button>
+  );
 }
 
 function alreadyAutoSuggested(): boolean {
@@ -73,6 +105,9 @@ function Planner() {
   const report = useServerFn(reportRecipe);
 
   const [filter, setFilter] = useState<"All" | "Lunch" | "Dinner">("All");
+  const [maxMinutes, setMaxMinutes] = useState<number | null>(null);
+  const [main, setMain] = useState<MainIngredient | null>(null);
+  const [expanded, setExpanded] = useState<string[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestion, setSuggestion] = useState<{ text: string; error: boolean } | null>(null);
   const [showHidden, setShowHidden] = useState(false);
@@ -96,6 +131,11 @@ function Planner() {
       }),
     [kitchen?.items, kitchen?.library, kitchen?.prefs, kitchen?.votes],
   );
+  const mainById = useMemo(
+    () => new Map([...ranked, ...hiddenMeals].map((r) => [r.meal.id, mainIngredient(r.meal)])),
+    [ranked, hiddenMeals],
+  );
+  const mainOf = (meal: Meal) => mainById.get(meal.id) ?? mainIngredient(meal);
 
   // Show a vote straight away (a thumbs down hides the card), then save it.
   function patchVotes(change: (votes: Kitchen["votes"]) => Kitchen["votes"]) {
@@ -142,6 +182,8 @@ function Planner() {
         onToggleFavorite={() => favoriteToggle.mutate({ meal, favorite: !savedIds.has(meal.id) })}
         vote={kitchen?.votes.mine[meal.id] ?? 0}
         hasDiets={(kitchen?.prefs.diets.length ?? 0) > 0}
+        popular={(kitchen?.votes.scores[meal.id] ?? 0) >= POPULAR_SCORE}
+        isNew={isNew(meal)}
         {...(votingOn && {
           onVote: (v: 1 | -1 | 0) => void castVote(meal.id, v),
           onReport: (reason: ReportReason) => void reportMeal(meal.id, reason),
@@ -180,11 +222,39 @@ function Planner() {
     // suggestMeals only needs to run once, when the condition first holds.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldAutoSuggest]);
-  const byFilter = (r: RankedMeal) => (filter === "All" ? true : r.meal.meal === filter);
-  const visible = ranked.filter(byFilter).slice(0, MAX_SHOWN);
+  const ofType = (r: RankedMeal) => filter === "All" || r.meal.meal === filter;
+  const byFilter = (r: RankedMeal) =>
+    ofType(r) &&
+    (maxMinutes === null || r.meal.minutes <= maxMinutes) &&
+    (main === null || mainOf(r.meal) === main);
+  const matches = ranked.filter(byFilter);
+  const sections = [
+    {
+      key: "ready",
+      title: "Ready now",
+      note: "Everything's already in your kitchen.",
+      meals: matches.filter((r) => r.missing.length === 0),
+      shown: 12,
+    },
+    {
+      key: "away",
+      title: "One item away",
+      note: "Pick up one thing on the way home.",
+      meals: matches.filter((r) => r.missing.length === 1),
+      shown: 6,
+    },
+  ];
+  const mainChoices = MAIN_INGREDIENTS.filter((m) => ranked.some((r) => ofType(r) && mainOf(r.meal) === m));
+  const filtered = maxMinutes !== null || main !== null;
   const hiddenVisible = hiddenMeals.filter(byFilter);
   const readyNow = ranked.filter((r) => r.missing.length === 0).length;
   const savedIds = new Set((kitchen?.favorites ?? []).map((f) => f.meal_id));
+
+  function clearFilters() {
+    setFilter("All");
+    setMaxMinutes(null);
+    setMain(null);
+  }
 
   if (isLoading || !kitchen) {
     return (
@@ -203,9 +273,7 @@ function Planner() {
           Your pantry, made into meals
         </p>
         <h1 className="font-display text-4xl md:text-5xl leading-tight mt-3 max-w-2xl">
-          {readyNow > MAX_SHOWN
-            ? `${MAX_SHOWN}+ meals you can cook right now.`
-            : readyNow > 0
+          {readyNow > 0
               ? `${readyNow} ${readyNow === 1 ? "meal" : "meals"} you can cook right now.`
               : "Add a few more groceries and meals will appear."}
         </h1>
@@ -237,7 +305,7 @@ function Planner() {
             <div>
               <h2 className="font-display text-3xl">What you can cook</h2>
               <p className="text-ink/60 mt-1 text-sm">
-                Sorted by what needs the least shopping. Heart one to keep it.
+                Best-liked first. Heart one to keep it.
               </p>
             </div>
             <div className="flex items-center gap-1 rounded-full border border-ink/10 p-1">
@@ -257,13 +325,62 @@ function Planner() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">{visible.map(card)}</div>
+          {ranked.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center gap-1.5">
+              {TIME_LIMITS.map((limit) => (
+                <FilterChip
+                  key={limit}
+                  on={maxMinutes === limit}
+                  onClick={() => setMaxMinutes(maxMinutes === limit ? null : limit)}
+                >
+                  ≤ {limit} min
+                </FilterChip>
+              ))}
+              <span className="mx-1 h-4 w-px bg-ink/15" aria-hidden="true" />
+              {mainChoices.map((m) => (
+                <FilterChip key={m} on={main === m} onClick={() => setMain(main === m ? null : m)}>
+                  {m}
+                </FilterChip>
+              ))}
+            </div>
+          )}
 
-          {visible.length === 0 && ranked.length > 0 && (
+          {sections
+            .filter((s) => s.meals.length > 0)
+            .map((s) => {
+              const open = expanded.includes(s.key);
+              const extra = s.meals.length - s.shown;
+              return (
+                <div key={s.key} className="mb-8">
+                  <div className="flex items-baseline justify-between gap-3 mb-3">
+                    <h3 className="font-display text-xl">
+                      {s.title} <span className="text-ink/40">{s.meals.length}</span>
+                    </h3>
+                    <p className="text-xs text-ink/50">{s.note}</p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {(open ? s.meals : s.meals.slice(0, s.shown)).map(card)}
+                  </div>
+                  {extra > 0 && (
+                    <button
+                      onClick={() =>
+                        setExpanded(open ? expanded.filter((k) => k !== s.key) : [...expanded, s.key])
+                      }
+                      className="mt-4 rounded-full border border-ink/15 px-4 py-1.5 text-sm font-semibold text-ink/70 hover:border-sage"
+                    >
+                      {open ? "Show fewer" : `Show ${extra} more`}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+          {matches.length === 0 && ranked.length > 0 && (
             <div className="bg-paper border border-ink/10 rounded-2xl p-6">
               <p className="text-sm text-ink/65">
-                No {filter.toLowerCase()} ideas with what's in your kitchen right now.{" "}
-                <button onClick={() => setFilter("All")} className="font-semibold underline">
+                {filtered ? "No meals match these filters" : `No ${filter.toLowerCase()} ideas`}{" "}
+                with what's in your kitchen right now.{" "}
+                <button onClick={clearFilters} className="font-semibold underline">
                   Show all meals
                 </button>
               </p>

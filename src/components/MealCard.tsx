@@ -28,6 +28,8 @@ export function MealCard({
   onVote,
   onReport,
   hasDiets = false,
+  popular = false,
+  isNew = false,
 }: {
   meal: Meal;
   missing?: string[];
@@ -39,6 +41,10 @@ export function MealCard({
   onReport?: (reason: ReportReason) => void;
   /** Offer "Doesn't fit my diet" only to cooks who have a diet set. */
   hasDiets?: boolean;
+  /** Well liked by other cooks. */
+  popular?: boolean;
+  /** Recently added to the library. */
+  isNew?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -135,6 +141,16 @@ export function MealCard({
             </span>
           )
         ) : null}
+        {popular && (
+          <span className="text-xs border border-terracotta/30 text-terracotta font-semibold px-2.5 py-1 rounded-full">
+            Popular
+          </span>
+        )}
+        {isNew && (
+          <span className="text-xs border border-sage/40 text-sagedark font-semibold px-2.5 py-1 rounded-full">
+            New
+          </span>
+        )}
         <button
           onClick={() => setOpen(!open)}
           className="ml-auto text-sm font-semibold text-ink"

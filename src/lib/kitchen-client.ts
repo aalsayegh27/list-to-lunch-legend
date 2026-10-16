@@ -13,9 +13,6 @@ export const kitchenQueryOptions = queryOptions<Kitchen>({
 
 export type RankedMeal = { meal: Meal; missing: string[] };
 
-/** Most meals the planner shows at once, so a large library doesn't bury the best matches. */
-export const MAX_SHOWN = 30;
-
 /** True when the cook has hidden this recipe for themselves (thumbs down or report). */
 export function hiddenByCook(mealId: string, votes: Votes): boolean {
   return votes.mine[mealId] === -1 || votes.reported.includes(mealId);

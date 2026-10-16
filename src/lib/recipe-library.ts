@@ -22,6 +22,7 @@ export type RecipeRow = {
   steps: string[];
   allergens: string[];
   diets: string[];
+  created_at?: string;
 };
 
 /** Matches the starter recipes' blurbs: "Shrimp, arborio rice, garlic." */
@@ -46,6 +47,7 @@ export function recipeToMeal(row: RecipeRow): Meal {
     allergens: row.allergens,
     diets: row.diets ?? [],
     source: "ai",
+    ...(row.created_at && { createdAt: row.created_at }),
   };
 }
 
@@ -55,7 +57,7 @@ const LIBRARY_LIMIT = 500;
 export async function loadLibrary(db: SupabaseClient): Promise<{ meals: Meal[]; available: boolean }> {
   const { data, error } = await db
     .from("recipes")
-    .select("id, title, meal, minutes, ingredients, steps, allergens, diets")
+    .select("id, title, meal, minutes, ingredients, steps, allergens, diets, created_at")
     .order("created_at", { ascending: false })
     .limit(LIBRARY_LIMIT);
   if (error) return { meals: [], available: false };
